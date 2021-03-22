@@ -39,6 +39,7 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     global LastTimeSent
+    logger.debug(msg.payload.decode())
     for sensor in Sensors:
         if sensor in msg.topic:
             if sensor in LastTimeSent:
@@ -79,6 +80,6 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        logger.exception('An unexpected error occurred')
+        logger.error('An unexpected error occurred')
         logger.error("".join(traceback.format_exception(None,e, e.__traceback__)))
         sys.exit(2)
