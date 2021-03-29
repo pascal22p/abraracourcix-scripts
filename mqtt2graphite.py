@@ -51,8 +51,12 @@ def on_message(client, userdata, msg):
             payload = json.loads(msg.payload.decode())
             for type, value in payload.items():
                 if isinstance(value, str):
-                    metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
-                    logger.info("%s: sending %s to graphite"%(sensor, metric))
+                    if value == "ON":
+                        metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 1)
+                    elif value == "OFF":
+                        metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 0)
+                    else:
+                        metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
                 else:
                     metric = "%s.%s.%s.%s %f"%(args.graphiteKey, Prefix, sensor, type, value)
                 netcat(args.graphiteHost, args.graphitePort, metric)
