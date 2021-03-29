@@ -50,7 +50,7 @@ def on_message(client, userdata, msg):
             LastTimeSent[sensor] = datetime.datetime.now()
             payload = json.loads(msg.payload.decode())
             for type, value in payload.items():
-                if type(value) == type("string"):
+                if isinstance(value, str):
                     metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
                     logger.info("%s: sending %s to graphite"%(sensor, metric))
                 else:
