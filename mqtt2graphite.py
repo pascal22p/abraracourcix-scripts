@@ -22,7 +22,7 @@ finally:
     logger.setLevel(logging.INFO)
 
 global Sensors, LastTimeSent, args
-Sensors = ["living-room-sensor1"]
+Sensors = ["living-room-sensor1", "garage-socket1"]
 LastTimeSent = {}
 
 def netcat(host, port, content):
