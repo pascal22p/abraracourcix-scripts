@@ -21,7 +21,8 @@ except ImportError:
 finally:
     logger.setLevel(logging.INFO)
 
-global Sensors, LastTimeSent, args
+global Sensors, LastTimeSent, args, Prefix
+Prefix = "zigbee2mqtt"
 Sensors = ["living-room-sensor1", "garage-socket1"]
 LastTimeSent = {}
 
@@ -49,7 +50,11 @@ def on_message(client, userdata, msg):
             LastTimeSent[sensor] = datetime.datetime.now()
             payload = json.loads(msg.payload.decode())
             for type, value in payload.items():
-                metric = "%s.%s.%s %f"%(args.graphiteKey, sensor, type, value)
+                if type(value) == type("string"):
+                    metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
+                    logger.info("%s: sending %s to graphite"%(sensor, metric))
+                else:
+                    metric = "%s.%s.%s.%s %f"%(args.graphiteKey, Prefix, sensor, type, value)
                 netcat(args.graphiteHost, args.graphitePort, metric)
                 logger.info("%s: sent %s to graphite"%(sensor, metric))
 
