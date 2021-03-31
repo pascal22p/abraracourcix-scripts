@@ -10,12 +10,14 @@ import traceback
 import sys
 import argparse
 
+appName = 'mqtt2graphite'
+
 try:
     from systemd.journal import JournalHandler
-    logger = logging.getLogger('mqtt2graphite')
-    logger.addHandler(JournalHandler())
+    logger = logging.getLogger(appName)
+    logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
 except ImportError:
-    logger = logging.getLogger('mqtt2graphite')
+    logger = logging.getLogger(appName)
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
 finally:
