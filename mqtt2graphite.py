@@ -10,12 +10,14 @@ import traceback
 import sys
 import argparse
 
+appName = 'mqtt2graphite'
+
 try:
     from systemd.journal import JournalHandler
-    logger = logging.getLogger('mqtt2graphite')
-    logger.addHandler(JournalHandler())
+    logger = logging.getLogger(appName)
+    logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
 except ImportError:
-    logger = logging.getLogger('mqtt2graphite')
+    logger = logging.getLogger(appName)
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
 finally:
@@ -23,7 +25,7 @@ finally:
 
 global Sensors, LastTimeSent, args, Prefix
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1"]
+Sensors = ["living-room-sensor1", "garage-socket1", "metoffice", "noweather"]
 LastTimeSent = {}
 
 def netcat(host, port, content):
@@ -36,7 +38,7 @@ def netcat(host, port, content):
 
 def on_connect(client, userdata, flags, rc):
   logger.debug("Connected with result code "+str(rc))
-  client.subscribe("zigbee2mqtt/#")
+  client.subscribe([("zigbee2mqtt/#",0), ("homeassistant/#",0)])
 
 def on_message(client, userdata, msg):
     global LastTimeSent
