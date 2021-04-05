@@ -61,6 +61,7 @@ class tokenClass:
     def __init__(self, config):
         self.token = None
         self.tokenExpire = None
+        self.refresh = None
         self.password = config.netatmoPassword
         self.client_id = config.netatmoId
         self.client_secret = config.netatmoSecret
@@ -72,67 +73,59 @@ class tokenClass:
         if resp.status_code == 200:
             token = resp.json()
             self.token = token["access_token"]
-            self.tokenExpire = int(time.time()) + token['expires_in'] - 300
+            self.tokenExpire = int(time.time()) + token['expires_in']
             self.refresh = token["refresh_token"]
 
             f = open(self.tokenFile, "w")
+            f.write(str(self.tokenExpire) + "\n")
+            f.write(self.refresh + "\n")
             f.write(self.token)
             f.close()
-            logger.debug("refreshed token %s from netatmo"%self.token)
+            logger.debug("refreshed token %s from netatmo, expires in %d"%(self.token, token['expires_in']))
         else:
+            logger.error("Error while refreshing token: %s"%resp.content)
             resp.raise_for_status()
 
     def __loadFromDisk(self):
         try:
-            stat = os.stat(self.tokenFile)
+            f = open(self.tokenFile, 'r')
         except FileNotFoundError:
-            lastModified = None
-            logger.debug("token file not found")
+            pass
         else:
-            lastModified = datetime.datetime.fromtimestamp(stat.st_mtime)
-            logger.debug("toekn file last modified %s"%lastModified)
-
-        token = None
-        if lastModified is not None:
-            if (datetime.datetime.now() - lastModified).total_seconds() < 60 * 60 * 2:
-                with open(self.tokenFile, 'r') as f:
-                    token = f.read().strip()
-                    logger.debug("read token %s from file"%token)
-
-        return token
+            content = f.readlines()
+            self.tokenExpire = int(content[0])
+            self.refresh = content[1].strip()
+            self.token = content[2].strip()
+            logger.debug("read token %s from file"%self.token)
+            f.close()
 
     def getToken(self):
-        if self.token is None:
-            diskToken = self.__loadFromDisk()
+        self.__loadFromDisk()
+        if self.token is None or (self.tokenExpire < int(time.time())):
+            data = dict(grant_type='password', client_id=self.client_id,
+                client_secret=self.client_secret, username=self.username,
+                password=self.password, scope='read_station')
 
-            if diskToken is None:
-                data = dict(grant_type='password', client_id=self.client_id,
-                    client_secret=self.client_secret, username=self.username,
-                    password=self.password, scope='read_station')
-
-                resp = requests.post('https://api.netatmo.com/oauth2/token', data=data)
-                if resp.status_code == 200:
-                    token = resp.json()
-                    self.token = token["access_token"]
-                    self.tokenExpire = int(time.time()) + token['expires_in'] - 300
-                    self.refresh = token["refresh_token"]
-                else:
-                    resp.raise_for_status()
-
-                f = open(self.tokenFile, "w")
-                f.write(self.token)
-                f.close()
-                logger.debug("Got new token %s form netatmo"%self.token)
+            resp = requests.post('https://api.netatmo.com/oauth2/token', data=data)
+            if resp.status_code == 200:
+                token = resp.json()
+                self.token = token["access_token"]
+                self.tokenExpire = int(time.time()) + token['expires_in']
+                self.refresh = token["refresh_token"]
             else:
-                return diskToken
+                logger.error("Error while getting token: %s"%resp.content)
+                resp.raise_for_status()
+
+            f = open(self.tokenFile, "w")
+            f.write(str(self.tokenExpire) + "\n")
+            f.write(self.refresh + "\n")
+            f.write(self.token)
+            f.close()
+            logger.debug("Got new token %s from netatmo, token expires in %d"%(self.token, token['expires_in']))
         else:
-            if tokenExpire < int(time.time()):
+            if self.tokenExpire < int(time.time()) + 300:
                 # refresh token
-                self.token = None
-                self.tokenExpire = None
                 self.__refreshToken()
-            else:
-                self.token = token
         return self.token
 
 def getWeatherStationData(token, location):
