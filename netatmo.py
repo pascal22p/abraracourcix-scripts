@@ -3,7 +3,6 @@ import time
 import math
 import numpy
 import os
-import tempfile
 import datetime
 import logging
 import sys
@@ -23,7 +22,7 @@ except ImportError:
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
 finally:
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
 def notNone(x):
     return x is not None
@@ -57,6 +56,7 @@ class tokenClass:
     client_id = None
     secret_id = None
     username = None
+    tokenFile = "/tmp/netatmo2mqtt"
 
     def __init__(self, config):
         self.token = None
@@ -74,28 +74,60 @@ class tokenClass:
             self.token = token["access_token"]
             self.tokenExpire = int(time.time()) + token['expires_in'] - 300
             self.refresh = token["refresh_token"]
+
+            f = open(self.tokenFile, "w")
+            f.write(self.token)
+            f.close()
+            logger.debug("refreshed token %s from netatmo"%self.token)
         else:
             resp.raise_for_status()
 
+    def __loadFromDisk(self):
+        try:
+            stat = os.stat(self.tokenFile)
+        except FileNotFoundError:
+            lastModified = None
+            logger.debug("token file not found")
+        else:
+            lastModified = datetime.datetime.fromtimestamp(stat.st_mtime)
+            logger.debug("toekn file last modified %s"%lastModified)
+
+        token = None
+        if lastModified is not None:
+            if (datetime.datetime.now() - lastModified).total_seconds() < 60 * 60 * 2:
+                with open(self.tokenFile, 'r') as f:
+                    token = f.read().strip()
+                    logger.debug("read token %s from file"%token)
+
+        return token
+
     def getToken(self):
         if self.token is None:
-            token, filename = tempfile.mkstemp()
+            diskToken = self.__loadFromDisk()
 
-            data = dict(grant_type='password', client_id=self.client_id,
-                client_secret=self.client_secret, username=self.username,
-                password=self.password, scope='read_station')
+            if diskToken is None:
+                data = dict(grant_type='password', client_id=self.client_id,
+                    client_secret=self.client_secret, username=self.username,
+                    password=self.password, scope='read_station')
 
-            resp = requests.post('https://api.netatmo.com/oauth2/token', data=data)
-            if resp.status_code == 200:
-                token = resp.json()
-                self.token = token["access_token"]
-                self.tokenExpire = int(time.time()) + token['expires_in'] - 300
-                self.refresh = token["refresh_token"]
+                resp = requests.post('https://api.netatmo.com/oauth2/token', data=data)
+                if resp.status_code == 200:
+                    token = resp.json()
+                    self.token = token["access_token"]
+                    self.tokenExpire = int(time.time()) + token['expires_in'] - 300
+                    self.refresh = token["refresh_token"]
+                else:
+                    resp.raise_for_status()
+
+                f = open(self.tokenFile, "w")
+                f.write(self.token)
+                f.close()
+                logger.debug("Got new token %s form netatmo"%self.token)
             else:
-                resp.raise_for_status()
+                return diskToken
         else:
             if tokenExpire < int(time.time()):
-                # refresh toekn
+                # refresh token
                 self.token = None
                 self.tokenExpire = None
                 self.__refreshToken()
@@ -108,7 +140,7 @@ def getWeatherStationData(token, location):
     url = 'https://api.netatmo.com/api/getpublicdata?access_token=%s&lat_ne=%f&lon_ne=%f&lat_sw=%f&lon_sw=%f'%(
         token, corners["lat_ne"], corners["lon_ne"], corners["lat_sw"], corners["lon_sw"])
 
-    print(url)
+    #print(url)
     resp = requests.get(url)
     if resp.status_code == 200:
         return resp.json()["body"]
@@ -230,6 +262,7 @@ def main():
     mqttBody = {}
     for name in stats.getNames():
         average, confidence = getAverage(stats.getList(name))
+        logger.info("got measure %s with average %f and confidence %f"%(name, average, confidence))
         mqttBody["%s_value"%name] = average
         mqttBody["%s_confidence"%name] = confidence
         #print(name, average, confidence)
