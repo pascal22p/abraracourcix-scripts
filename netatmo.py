@@ -255,13 +255,13 @@ def main():
 
     mqttBody = {}
     for name in stats.getNames():
-        average, confidence = getAverage(stats.getList(name))
-        logger.info("got measure %s with average %f and confidence %f"%(name, average, confidence))
+        measures = stats.getList(name)
+        average, confidence = getAverage(measures)
+        logger.info("got measure %s (%s) with average %f and confidence %f"%(name, ",".join(measures), average, confidence))
         mqttBody["%s_value"%name] = average
         mqttBody["%s_confidence"%name] = confidence
         #print(name, average, confidence)
     mqttClient.publish("homeassistant/netatmo", json.dumps(mqttBody, separators=(',', ':')))
-
 
 if __name__ == '__main__':
     try:
