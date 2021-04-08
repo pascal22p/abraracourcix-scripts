@@ -257,7 +257,7 @@ def main():
     for name in stats.getNames():
         measures = stats.getList(name)
         average, confidence = getAverage(measures)
-        logger.info("got measure %s (%s) with average %f and confidence %f"%(name, ",".join(measures), average, confidence))
+        logger.info("got measure %s (%s) with average %f and confidence %f"%(name, ",".join(["%.02f"%m for m in measures]), average, confidence))
         mqttBody["%s_value"%name] = average
         mqttBody["%s_confidence"%name] = confidence
         #print(name, average, confidence)
