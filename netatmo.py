@@ -157,6 +157,10 @@ def getMeasure(name, measure):
 def getAverage(values):
     if len(values) > 11:
         sortedList = numpy.sort(numpy.array(values, dtype=numpy.double))[3:-3]
+    elif len(values) > 9:
+        sortedList = numpy.sort(numpy.array(values, dtype=numpy.double))[2:-2]
+    elif len(values) > 7:
+        sortedList = numpy.sort(numpy.array(values, dtype=numpy.double))[1:-1]
     else:
         sortedList = numpy.array(values, dtype=numpy.double)
     average = numpy.average(sortedList)
@@ -166,6 +170,10 @@ def getAverage(values):
 def getAngleAverage(values):
     if len(values) > 11:
         sortedList = numpy.sort(numpy.array(values, dtype=numpy.double))[3:-3]
+    elif len(values) > 9:
+        sortedList = numpy.sort(numpy.array(values, dtype=numpy.double))[2:-2]
+    elif len(values) > 7:
+        sortedList = numpy.sort(numpy.array(values, dtype=numpy.double))[1:-1]
     else:
         sortedList = numpy.array(values, dtype=numpy.double)
     radians = numpy.radians(sortedList)
