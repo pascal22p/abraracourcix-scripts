@@ -115,6 +115,7 @@ class tokenClass:
                 self.refresh = token["refresh_token"]
             else:
                 logger.error("Error while getting token: %s"%resp.content)
+                os.remove(self.tokenFile)
                 resp.raise_for_status()
 
             f = open(self.tokenFile, "w")
