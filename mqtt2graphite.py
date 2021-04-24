@@ -54,7 +54,6 @@ def on_message(client, userdata, msg):
                 payload = json.loads(msg.payload.decode())
             except:
                 logger.error("Cannot parse json \"%s\""%msg.payload.decode())
-                raise
             for type, value in payload.items():
                 if isinstance(value, str):
                     if value == "ON":
