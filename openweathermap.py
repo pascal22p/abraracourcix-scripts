@@ -44,7 +44,7 @@ def updateLastValue(timestamp):
     f.close()
 
 def getWeatherStationData(key, location):
-    url = 'https://api.openweathermap.org/data/2.5/weather?appid=%s&id=%d&units=metric'%(key, location)
+    url = 'https://api.openweathermap.org/data/2.5/onecall?appid=%s&units=metric&lat=%f&lon=%f&exclude=minutely,daily,alerts'%(key, location["lat"], location["lon"])
 
     #print(url)
     resp = requests.get(url)
@@ -52,6 +52,9 @@ def getWeatherStationData(key, location):
         return resp.json()
     else:
         resp.raise_for_status()
+
+def dictfilt(data, excluded):
+    return dict([ (i,data[i]) for i in data if i not in set(excluded) ])
 
 def main():
     parser = argparse.ArgumentParser(description='Sent openweathermap data to mqtt')
@@ -66,44 +69,21 @@ def main():
     mqttClient = mqtt.Client()
     mqttClient.connect(args.mqttHost,args.mqttPort,60)
 
-    location = 3333174
+    #location = 3333174
+    location = {"lat": 55.00014637405377, "lon":-1.5854536921597275}
 
     data = getWeatherStationData(args.apiKey, location)
     #print(data)
 
-    mqttBody = data["main"]
-    mqttBody["visibility"] = data["visibility"]
-    if "wind" in data:
-        if "speed" in data["wind"]:
-            mqttBody["wind_speed"] = data["wind"]["speed"]
-        if "gust" in data["wind"]:
-            mqttBody["wind_gust"] = data["wind"]["gust"]
-        if "deg" in data["wind"]:
-            mqttBody["wind_deg"] = data["wind"]["deg"]
-    if "rain" in data:
-        if "1h" in data["rain"]:
-            mqttBody["rain_1h"] = data["rain"]["1h"]
-        if "3h" in data["rain"]:
-            mqttBody["rain_3h"] = data["rain"]["3h"]
-    if "snow" in data:
-        if "1h" in data["snow"]:
-            mqttBody["snow_1h"] = data["snow"]["1h"]
-        if "3h" in data["rain"]:
-            mqttBody["snow_3h"] = data["snow"]["3h"]
-    if "clouds" in data:
-        if "all" in data["clouds"]:
-            mqttBody["clouds_all"] = data["clouds"]["all"]
-    #print(mqttBody)
+    excludedKeys = ["sunrise", "sunset", "weather", "dt"]
 
-    timestamp = data["dt"]
-    lastValue = getLastValue()
-    if ( timestamp > lastValue + 60):
-        jsonBody = json.dumps(mqttBody, separators=(',', ':'))
-        logger.info("Sending openweathermap data '%s' to mqtt"%jsonBody)
-        mqttClient.publish("openweathermap/openweathermap", jsonBody)
-        updateLastValue(timestamp)
-    else:
-        logger.info('Nothing new to send')
+    mqttBodyCurrent = dictfilt(data["current"], excludedKeys)
+    mqttBodyCurrent["weather_id"] = data["current"]["weather"][0]["id"]
+    mqttBodyHourlyRaw = max(data["hourly"], key=lambda item: item["dt"])
+    mqttBodyCurrent["wind_gust_hourly"] = mqttBodyHourlyRaw["wind_gust"]
+    jsonBody = json.dumps(mqttBodyCurrent, separators=(',', ':'))
+    logger.info("Sending openweathermap data '%s' to mqtt"%jsonBody)
+    mqttClient.publish("openweathermap/openweathermap/current", jsonBody)
 
 if __name__ == '__main__':
     try:
