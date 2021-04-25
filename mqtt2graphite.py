@@ -25,7 +25,7 @@ finally:
 
 global Sensors, LastTimeSent, args, Prefix
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "weatherData"]
+Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "openweathermap"]
 LastTimeSent = {}
 
 def netcat(host, port, content):
