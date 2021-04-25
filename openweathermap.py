@@ -11,7 +11,7 @@ import argparse
 import json
 import paho.mqtt.client as mqtt
 
-appName = "metoffice2graphite"
+appName = "openweathermap2graphite"
 
 try:
     from systemd.journal import JournalHandler
@@ -100,7 +100,7 @@ def main():
     if ( timestamp > lastValue + 60):
         jsonBody = json.dumps(mqttBody, separators=(',', ':'))
         logger.info("Sending openweathermap data '%s' to mqtt"%jsonBody)
-        mqttClient.publish("openweathermap/weatherData", jsonBody)
+        mqttClient.publish("openweathermap/openweathermap", jsonBody)
         updateLastValue(timestamp)
     else:
         logger.info('Nothing new to send')
