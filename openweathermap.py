@@ -73,9 +73,26 @@ def main():
 
     mqttBody = data["main"]
     mqttBody["visibility"] = data["visibility"]
-    mqttBody["wind_speed"] = data["wind"]["speed"]
-    mqttBody["wind_deg"] = data["wind"]["deg"]
-    mqttBody["clouds_all"] = data["clouds"]["all"]
+    if "wind" in data:
+        if "speed" in data["wind"]:
+            mqttBody["wind_speed"] = data["wind"]["speed"]
+        if "gust" in data["wind"]:
+            mqttBody["wind_gust"] = data["wind"]["gust"]
+        if "deg" in data["wind"]:
+            mqttBody["wind_deg"] = data["wind"]["deg"]
+    if "rain" in data:
+        if "1h" in data["rain"]:
+            mqttBody["rain_1h"] = data["rain"]["1h"]
+        if "3h" in data["rain"]:
+            mqttBody["rain_3h"] = data["rain"]["3h"]
+    if "snow" in data:
+        if "1h" in data["snow"]:
+            mqttBody["snow_1h"] = data["snow"]["1h"]
+        if "3h" in data["rain"]:
+            mqttBody["snow_3h"] = data["snow"]["3h"]
+    if "clouds" in data:
+        if "all" in data["clouds"]:
+            mqttBody["clouds_all"] = data["clouds"]["all"]
     #print(mqttBody)
 
     timestamp = data["dt"]
