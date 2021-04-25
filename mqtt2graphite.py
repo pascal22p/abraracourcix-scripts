@@ -25,7 +25,7 @@ finally:
 
 global Sensors, LastTimeSent, args, Prefix
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather","netatmo"]
+Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "weatherData"]
 LastTimeSent = {}
 
 def netcat(host, port, content):
@@ -38,7 +38,7 @@ def netcat(host, port, content):
 
 def on_connect(client, userdata, flags, rc):
   logger.debug("Connected with result code "+str(rc))
-  client.subscribe([("zigbee2mqtt/#",0), ("homeassistant/#",0)])
+  client.subscribe([("zigbee2mqtt/#",0), ("homeassistant/#",0), ("openweathermap/#",0)])
 
 def on_message(client, userdata, msg):
     global LastTimeSent
