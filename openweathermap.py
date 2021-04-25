@@ -83,7 +83,7 @@ def main():
     mqttBodyCurrent["wind_gust_hourly"] = mqttBodyHourlyRaw["wind_gust"]
     jsonBody = json.dumps(mqttBodyCurrent, separators=(',', ':'))
     logger.info("Sending openweathermap data '%s' to mqtt"%jsonBody)
-    mqttClient.publish("openweathermap/openweathermap/current", jsonBody)
+    mqttClient.publish("openweathermap/openweathermap", jsonBody)
 
 if __name__ == '__main__':
     try:
