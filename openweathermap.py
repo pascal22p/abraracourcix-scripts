@@ -81,6 +81,14 @@ def main():
     mqttBodyCurrent["weather_id"] = data["current"]["weather"][0]["id"]
     mqttBodyHourlyRaw = max(data["hourly"], key=lambda item: item["dt"])
     mqttBodyCurrent["wind_gust_hourly"] = mqttBodyHourlyRaw["wind_gust"]
+    if "pop" in  mqttBodyHourlyRaw:
+        mqttBodyCurrent["rain_pop"] = mqttBodyHourlyRaw["pop"]
+    else:
+        mqttBodyCurrent["rain_pop"] = 0
+    mqttBodyCurrent["rain_1h"] = 0
+    if "rain" in mqttBodyHourlyRaw:
+        if "1h" in mqttBodyHourlyRaw["rain"]:
+            mqttBodyCurrent["rain_1h"] = mqttBodyHourlyRaw["rain_1h"]
     jsonBody = json.dumps(mqttBodyCurrent, separators=(',', ':'))
     logger.info("Sending openweathermap data '%s' to mqtt"%jsonBody)
     mqttClient.publish("openweathermap/openweathermap", jsonBody)
