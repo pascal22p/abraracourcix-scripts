@@ -75,7 +75,7 @@ def main():
     data = getWeatherStationData(args.apiKey, location)
     #print(data)
 
-    excludedKeys = ["sunrise", "sunset", "weather", "dt"]
+    excludedKeys = ["sunrise", "sunset", "weather", "dt", "rain", "pop"]
 
     mqttBodyCurrent = dictfilt(data["current"], excludedKeys)
     mqttBodyCurrent["weather_id"] = data["current"]["weather"][0]["id"]
