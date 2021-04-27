@@ -64,9 +64,15 @@ def on_message(client, userdata, msg):
                     else:
                         metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
                 else:
-                    metric = "%s.%s.%s.%s %f"%(args.graphiteKey, Prefix, sensor, type, value)
-                netcat(args.graphiteHost, args.graphitePort, metric)
-                logger.info("%s: sent %s to graphite"%(sensor, metric))
+                    try:
+                        metric = "%s.%s.%s.%s %f"%(args.graphiteKey, Prefix, sensor, type, value)
+                    except TypeError:
+                        logger.error("Invalid type: " + "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value))
+                        metric = None
+
+                if metric is not None:
+                    netcat(args.graphiteHost, args.graphitePort, metric)
+                    logger.info("%s: sent %s to graphite"%(sensor, metric))
 
 def main():
     global args
