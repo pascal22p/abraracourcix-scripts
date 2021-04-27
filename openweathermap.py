@@ -88,7 +88,7 @@ def main():
     mqttBodyCurrent["rain_1h"] = 0
     if "rain" in mqttBodyHourlyRaw:
         if "1h" in mqttBodyHourlyRaw["rain"]:
-            mqttBodyCurrent["rain_1h"] = mqttBodyHourlyRaw["rain_1h"]
+            mqttBodyCurrent["rain_1h"] = mqttBodyHourlyRaw["rain"]["1h"]
     jsonBody = json.dumps(mqttBodyCurrent, separators=(',', ':'))
     logger.info("Sending openweathermap data '%s' to mqtt"%jsonBody)
     mqttClient.publish("openweathermap/openweathermap", jsonBody)
