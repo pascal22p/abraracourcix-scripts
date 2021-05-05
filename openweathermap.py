@@ -49,7 +49,12 @@ def getWeatherStationData(key, location):
     #print(url)
     resp = requests.get(url)
     if resp.status_code == 200:
-        return resp.json()
+        try:
+            result = resp.json()
+        except:
+            logger.error("Invalid json: %s"%(resp.content))
+            raise
+        return result
     else:
         resp.raise_for_status()
 

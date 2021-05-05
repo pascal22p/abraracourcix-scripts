@@ -84,7 +84,10 @@ class tokenClass:
             logger.debug("refreshed token %s from netatmo, expires in %d"%(self.token, token['expires_in']))
         else:
             logger.error("Error while refreshing token: %s"%resp.content)
-            os.remove(self.tokenFile)
+            try:
+                os.remove(self.tokenFile)
+            except FileNotFoundError: 
+                pass
             resp.raise_for_status()
 
     def __loadFromDisk(self):
