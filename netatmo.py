@@ -86,7 +86,7 @@ class tokenClass:
             logger.error("Error while refreshing token: %s"%resp.content)
             try:
                 os.remove(self.tokenFile)
-            except FileNotFoundError: 
+            except FileNotFoundError:
                 pass
             resp.raise_for_status()
 
@@ -116,6 +116,12 @@ class tokenClass:
                 self.token = token["access_token"]
                 self.tokenExpire = int(time.time()) + token['expires_in']
                 self.refresh = token["refresh_token"]
+                f = open(self.tokenFile, "w")
+                f.write(str(self.tokenExpire) + "\n")
+                f.write(self.refresh + "\n")
+                f.write(self.token)
+                f.close()
+                logger.debug("Got new token %s from netatmo, token expires in %d"%(self.token, token['expires_in']))
             else:
                 logger.error("Error while getting token: %s"%resp.content)
                 try:
@@ -124,12 +130,7 @@ class tokenClass:
                     pass
                 resp.raise_for_status()
 
-            f = open(self.tokenFile, "w")
-            f.write(str(self.tokenExpire) + "\n")
-            f.write(self.refresh + "\n")
-            f.write(self.token)
-            f.close()
-            logger.debug("Got new token %s from netatmo, token expires in %d"%(self.token, token['expires_in']))
+
         else:
             if self.tokenExpire < int(time.time()) + 300:
                 # refresh token
