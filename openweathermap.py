@@ -53,7 +53,7 @@ def getWeatherStationData(key, location):
             result = resp.json()
         except:
             logger.error("Invalid json: %s"%(resp.content))
-            raise
+            result = {}
         return result
     else:
         resp.raise_for_status()

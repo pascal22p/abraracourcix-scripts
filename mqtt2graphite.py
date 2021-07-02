@@ -9,6 +9,7 @@ import logging
 import traceback
 import sys
 import argparse
+import requests
 
 appName = 'mqtt2graphite'
 
@@ -35,6 +36,17 @@ def netcat(host, port, content):
     s.shutdown(socket.SHUT_WR)
     time.sleep(1)
     s.close()
+
+def graphiteHttpPost(token, metric):
+    url = "https://graphite.gra1.metrics.ovh.net/api/v1/sink"
+    resp = requests.post(
+        'https://kibana.tools.production.tax.service.gov.uk/api/console/proxy?path=logstash*/_search&method=POST',
+        data=metric,
+        auth=HTTPBasicAuth('u', token))
+    if resp.status_code == 202:
+        logger.info("%s: sent %s to graphite"%(sensor, metric))
+    else:
+        resp.raise_for_status()
 
 def on_connect(client, userdata, flags, rc):
   logger.debug("Connected with result code "+str(rc))
@@ -73,6 +85,39 @@ def on_message(client, userdata, msg):
                 if metric is not None:
                     netcat(args.graphiteHost, args.graphitePort, metric)
                     logger.info("%s: sent %s to graphite"%(sensor, metric))
+
+def on_message_http(client, userdata, msg):
+    global LastTimeSent
+    logger.debug(msg.payload.decode())
+    for sensor in Sensors:
+        if sensor in msg.topic:
+            if sensor in LastTimeSent:
+                if (datetime.datetime.now() - LastTimeSent[sensor]).total_seconds() < 60:
+                    logger.debug("%s: Skipping, less then 60sec"%sensor)
+                    break
+            LastTimeSent[sensor] = datetime.datetime.now()
+            try:
+                payload = json.loads(msg.payload.decode())
+            except:
+                logger.error("Cannot parse json \"%s\""%msg.payload.decode())
+                continue
+            for type, value in payload.items():
+                if isinstance(value, str):
+                    if value == "ON":
+                        metric = "%s.%s.%s %d"%(Prefix, sensor, type, 1)
+                    elif value == "OFF":
+                        metric = "%s.%s.%s %d"%(Prefix, sensor, type, 0)
+                    else:
+                        metric = "%s.%s.%s %s"%(Prefix, sensor, type, value)
+                else:
+                    try:
+                        metric = "%s.%s.%s %f"%(Prefix, sensor, type, value)
+                    except TypeError:
+                        logger.error("Invalid type: " + "%s.%s.%s %s"%(Prefix, sensor, type, value))
+                        metric = None
+
+                if metric is not None:
+                    graphiteHttpPost(args.graphiteKey, metric)
 
 def main():
     global args
