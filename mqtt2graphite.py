@@ -10,6 +10,7 @@ import traceback
 import sys
 import argparse
 import requests
+from requests.auth import HTTPBasicAuth
 
 appName = 'mqtt2graphite'
 
@@ -37,11 +38,11 @@ def netcat(host, port, content):
     time.sleep(1)
     s.close()
 
-def graphiteHttpPost(token, metric):
+def graphiteHttpPost(token, metric, sensor):
     url = "https://graphite.gra1.metrics.ovh.net/api/v1/sink"
     resp = requests.post(
-        'https://kibana.tools.production.tax.service.gov.uk/api/console/proxy?path=logstash*/_search&method=POST',
-        data=metric,
+        url,
+        data=metric.encode(),
         auth=HTTPBasicAuth('u', token))
     if resp.status_code == 202:
         logger.info("%s: sent %s to graphite"%(sensor, metric))
@@ -117,7 +118,7 @@ def on_message_http(client, userdata, msg):
                         metric = None
 
                 if metric is not None:
-                    graphiteHttpPost(args.graphiteKey, metric)
+                    graphiteHttpPost(args.graphiteKey, metric, sensor)
 
 def main():
     global args
@@ -138,7 +139,7 @@ def main():
     client.connect(args.mqttHost,args.mqttPort,60)
 
     client.on_connect = on_connect
-    client.on_message = on_message
+    client.on_message = on_message_http
 
     client.loop_forever()
 
