@@ -275,7 +275,7 @@ def main():
         average, confidence = getAverage(measures)
         logger.info("got measure %s (%s) with average %f and confidence %f"%(name, ",".join(["%.02f"%m for m in measures]), average, confidence))
         mqttBody["%s_value"%name] = average
-        mqttBody["%s_confidence"%name] = confidence
+        #mqttBody["%s_confidence"%name] = confidence
         #print(name, average, confidence)
     mqttClient.publish("homeassistant/netatmo", json.dumps(mqttBody, separators=(',', ':')))
 
