@@ -23,11 +23,11 @@ except ImportError:
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
 finally:
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.ERROR)
 
 global Sensors, LastTimeSent, args, Prefix
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "openweathermap", "mosquitto"]
+Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive"]
 LastTimeSent = {}
 token = ""
 
@@ -91,13 +91,10 @@ def on_message(client, userdata, msg):
 def on_message_http(client, userdata, msg):
     global LastTimeSent, token
     logger.debug(msg.payload.decode())
+    logger.debug(Sensors)
+    logger.debug(msg.topic)
     for sensor in Sensors:
         if sensor in msg.topic:
-            if sensor in LastTimeSent:
-                if (datetime.datetime.now() - LastTimeSent[sensor]).total_seconds() < 60:
-                    logger.debug("%s: Skipping, less then 60sec"%sensor)
-                    break
-            LastTimeSent[sensor] = datetime.datetime.now()
             try:
                 payload = json.loads(msg.payload.decode())
             except:
