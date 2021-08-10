@@ -27,8 +27,9 @@ finally:
 
 global Sensors, LastTimeSent, args, Prefix
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "openweathermap"]
+Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "openweathermap", "mosquitto"]
 LastTimeSent = {}
+token = ""
 
 def netcat(host, port, content):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -39,19 +40,19 @@ def netcat(host, port, content):
     s.close()
 
 def graphiteHttpPost(token, metric, sensor):
-    url = "https://graphite.gra1.metrics.ovh.net/api/v1/sink"
+    url = "https://graphite.debroglie.net/graphiteSink.php"
     resp = requests.post(
         url,
-        data=metric.encode(),
-        auth=HTTPBasicAuth('u', token))
+        data=metric.encode())
     if resp.status_code == 202:
-        logger.info("%s: sent %s to graphite"%(sensor, metric))
+        logger.debug("%s: sent %s to graphite"%(sensor, metric))
     else:
+        logger.error("%s: failed to send %s to graphite"%(sensor, metric))
         resp.raise_for_status()
 
 def on_connect(client, userdata, flags, rc):
   logger.debug("Connected with result code "+str(rc))
-  client.subscribe([("zigbee2mqtt/#",0), ("homeassistant/#",0), ("openweathermap/#",0)])
+  client.subscribe([("zigbee2mqtt/#",0), ("homeassistant/#",0), ("openweathermap/#",0), ("KeepAlive/#", 0)])
 
 def on_message(client, userdata, msg):
     global LastTimeSent
@@ -85,10 +86,10 @@ def on_message(client, userdata, msg):
 
                 if metric is not None:
                     netcat(args.graphiteHost, args.graphitePort, metric)
-                    logger.info("%s: sent %s to graphite"%(sensor, metric))
+                    logger.debug("%s: sent %s to graphite"%(sensor, metric))
 
 def on_message_http(client, userdata, msg):
-    global LastTimeSent
+    global LastTimeSent, token
     logger.debug(msg.payload.decode())
     for sensor in Sensors:
         if sensor in msg.topic:
@@ -105,23 +106,23 @@ def on_message_http(client, userdata, msg):
             for type, value in payload.items():
                 if isinstance(value, str):
                     if value == "ON":
-                        metric = "%s.%s.%s %d"%(Prefix, sensor, type, 1)
+                        metric = "%s.%s.%s.%s %d"%(token, Prefix, sensor, type, 1)
                     elif value == "OFF":
-                        metric = "%s.%s.%s %d"%(Prefix, sensor, type, 0)
+                        metric = "%s.%s.%s.%s %d"%(token, Prefix, sensor, type, 0)
                     else:
-                        metric = "%s.%s.%s %s"%(Prefix, sensor, type, value)
+                        metric = "%s.%s.%s.%s %s"%(token, Prefix, sensor, type, value)
                 else:
                     try:
-                        metric = "%s.%s.%s %f"%(Prefix, sensor, type, value)
+                        metric = "%s.%s.%s.%s %f"%(token, Prefix, sensor, type, value)
                     except TypeError:
-                        logger.error("Invalid type: " + "%s.%s.%s %s"%(Prefix, sensor, type, value))
+                        logger.error("Invalid type: " + "%s.%s.%s.%s %s"%(token, Prefix, sensor, type, value))
                         metric = None
 
                 if metric is not None:
                     graphiteHttpPost(args.graphiteKey, metric, sensor)
 
 def main():
-    global args
+    global args, token
     parser = argparse.ArgumentParser(description='subscribe to topics and send data to graphite')
     parser.add_argument('--graphiteKey', metavar='GRAPHITEKEY', required=True,
                         help='graphite key')
@@ -134,6 +135,8 @@ def main():
     parser.add_argument('--mqttPort', metavar='MQTTPORT', default=1883,
                         help='mqtt port', type=int)
     args = parser.parse_args()
+
+    token = args.graphiteKey
 
     client = mqtt.Client()
     client.connect(args.mqttHost,args.mqttPort,60)
