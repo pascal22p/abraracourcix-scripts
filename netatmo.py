@@ -129,7 +129,7 @@ class tokenClass:
                 except FileNotFoundError:
                     pass
                 resp.raise_for_status()
-
+                return -1
 
         else:
             if self.tokenExpire < int(time.time()) + 300:
@@ -236,7 +236,11 @@ def main():
     token = tokenClass(args)
     location = {"lat": 55.00014637405377, "lon":-1.5854536921597275}
 
-    data = getWeatherStationData(token.getToken(), location)
+    tokenValue = token.getToken()
+    if tokenValue == -1:
+        return -1
+    else:
+        data = getWeatherStationData(tokenValue, location)
     #print(data)
 
     stats = statsClass()
