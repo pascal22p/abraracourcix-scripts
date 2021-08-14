@@ -23,7 +23,7 @@ except ImportError:
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
 finally:
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.DEBUG)
 
 global Sensors, LastTimeSent, args, Prefix
 Prefix = "zigbee2mqtt"
