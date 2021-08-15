@@ -129,7 +129,7 @@ class tokenClass:
                 except FileNotFoundError:
                     pass
                 resp.raise_for_status()
-
+                return -1
 
         else:
             if self.tokenExpire < int(time.time()) + 300:
@@ -236,7 +236,11 @@ def main():
     token = tokenClass(args)
     location = {"lat": 55.00014637405377, "lon":-1.5854536921597275}
 
-    data = getWeatherStationData(token.getToken(), location)
+    tokenValue = token.getToken()
+    if tokenValue == -1:
+        return -1
+    else:
+        data = getWeatherStationData(tokenValue, location)
     #print(data)
 
     stats = statsClass()
@@ -275,7 +279,7 @@ def main():
         average, confidence = getAverage(measures)
         logger.info("got measure %s (%s) with average %f and confidence %f"%(name, ",".join(["%.02f"%m for m in measures]), average, confidence))
         mqttBody["%s_value"%name] = average
-        mqttBody["%s_confidence"%name] = confidence
+        #mqttBody["%s_confidence"%name] = confidence
         #print(name, average, confidence)
     mqttClient.publish("homeassistant/netatmo", json.dumps(mqttBody, separators=(',', ':')))
 
