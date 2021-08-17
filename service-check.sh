@@ -2,6 +2,7 @@
 routing_key=$1
 lookAt=$2
 timestamp=`date --rfc-3339=seconds | sed 's/ /T/'`
+source=`hostname`
 
 for service in $lookAt; do
     result=`systemctl is-active $service`
@@ -13,7 +14,7 @@ for service in $lookAt; do
         "payload": {
           "summary": "Service $service is not running",
           "timestamp": "$timestamp",
-          "source": "mediacentre",
+          "source": "$source",
           "severity": "critical"
         },
         "routing_key": "$routing_key",
@@ -29,7 +30,7 @@ End-of-message
         "payload": {
           "summary": "Service $service is not running",
           "timestamp": "$timestamp",
-          "source": "mediacentre",
+          "source": "$source",
           "severity": "critical"
         },
         "routing_key": "$routing_key",
