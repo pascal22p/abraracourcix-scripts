@@ -1,6 +1,5 @@
 #!/bin/bash
-lookAt="amavisd collectd docker dovecot fail2ban firewalld mariadb nginx ntpd opendmarc php-fpm postfix seafile seahub spamassassin"
-
+lookAt=$1
 for service in $lookAt; do
     result=`systemctl is-active $service`
     if [[ $result != "active" ]]; then
