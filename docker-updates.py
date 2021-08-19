@@ -3,7 +3,7 @@ import json
 import logging
 import sys
 import re
-from distutils.version import StrictVersion
+from distutils.version import LooseVersion
 import random
 import docker
 import datetime
@@ -22,7 +22,7 @@ except ImportError:
 finally:
     logger.setLevel(logging.INFO)
 
-tagsRe = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+)[^a-zA-Z]+.*")
+tagsRe = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+[-0-9]*)[^a-zA-Z]+")
 
 def getContainersVersion():
     client = docker.from_env()
@@ -80,7 +80,7 @@ def getLatest(image):
     else:
         logger.error("Failed to get tags for %s"%image)
 
-    versions.sort(key=StrictVersion)
+    versions.sort(key=LooseVersion)
     return versions[-1]
 
 def main():
@@ -94,11 +94,11 @@ def main():
         description = "%s is running %s while version %s is available"%(image['name'], image['tag'], latest)
         logger.debug(description)
         try:
-            currentVersion = StrictVersion(image['tag'])
+            currentVersion = LooseVersion(image['tag'])
         except ValueError:
             logger.error("Version %s for container %s is invalid"%(image['tag'], image['name']))
         else:
-            if(currentVersion < StrictVersion(latest)):
+            if(currentVersion < LooseVersion(latest)):
                	sendAlert(args.pdkey, image['name'], description)
 
 if __name__ == '__main__':
