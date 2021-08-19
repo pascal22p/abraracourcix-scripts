@@ -33,14 +33,17 @@ def getContainersVersion():
         imagesList.append({"name":tag[0], "tag":tag[1]})
     return imagesList
 
-def sendAlert(key, container):
+def sendAlert(key, container, description):
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     body = {
         "payload": {
             "summary": "Container %s needs updating"%container,
             "timestamp": timestamp,
             "source": appName,
-            "severity": "critical"
+            "severity": "critical",
+            "custom_details": {
+                "description": description
+            }
         },
         "routing_key": key,
         "dedup_key": "docker-update-%s"%container,
@@ -87,8 +90,16 @@ def main():
     args = parser.parse_args()
 
     for image in getContainersVersion():
-        logger.debug("%s is running %s while version %s is available"%(image['name'], image['tag'], getLatest(image['name'])))
-        sendAlert(args.pdkey, image['name'])
+        latest = getLatest(image['name'])
+        description = "%s is running %s while version %s is available"%(image['name'], image['tag'], latest)
+        logger.debug(description)
+        try:
+            currentVersion = StrictVersion(image['tag'])
+        except ValueError:
+            logger.error("Version %s for container %s is invalid"%(image['tag'], image['name']))
+        else:
+            if(currentVersion < StrictVersion(latest)):
+               	sendAlert(args.pdkey, image['name'], description)
 
 if __name__ == '__main__':
     main()
