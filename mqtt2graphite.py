@@ -11,6 +11,7 @@ import sys
 import argparse
 import requests
 from requests.auth import HTTPBasicAuth
+import re
 
 appName = 'mqtt2graphite'
 
@@ -29,6 +30,7 @@ global Sensors, LastTimeSent, args, args
 
 Prefix = "zigbee2mqtt"
 Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive"]
+errorRegex = re.compile(".*to '([a-zA-Z0-9.-])' failed.*")
 
 def graphiteHttpPost(metric, sensor):
     global args
@@ -43,37 +45,53 @@ def graphiteHttpPost(metric, sensor):
 
 def on_connect(client, userdata, flags, rc):
   logger.debug("Connected with result code "+str(rc))
-  client.subscribe([("zigbee2mqtt/#",0), ("homeassistant/#",0), ("openweathermap/#",0), ("KeepAlive/#", 0)])
+  client.subscribe([("zigbee2mqtt/bridge/logging",0), ("zigbee2mqtt/#",0), ("homeassistant/#",0), ("openweathermap/#",0), ("KeepAlive/#", 0)])
 
 def on_message_http(client, userdata, msg):
     global args
     logger.debug(msg.payload.decode())
     logger.debug(Sensors)
     logger.debug(msg.topic)
-    for sensor in Sensors:
-        if sensor in msg.topic:
-            try:
-                payload = json.loads(msg.payload.decode())
-            except:
-                logger.error("Cannot parse json \"%s\""%msg.payload.decode())
-                continue
-            for type, value in payload.items():
-                if isinstance(value, str):
-                    if value == "ON":
-                        metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 1)
-                    elif value == "OFF":
-                        metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 0)
-                    else:
-                        metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
-                elif value is not None:
-                    try:
-                        metric = "%s.%s.%s.%s %f"%(args.graphiteKey, Prefix, sensor, type, value)
-                    except TypeError:
-                        logger.error("Invalid type: " + "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value))
-                        metric = None
+    if msg.topic == "zigbee2mqtt/bridge/logging":
+        try:
+            payload = json.loads(msg.payload.decode())
+        except:
+            logger.error("Cannot parse json \"%s\""%msg.payload.decode())
+            pass
+        else:
+            metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, "logging", payload["level"], 1)
+            graphiteHttpPost(metric, "logging/%s"%payload["level"])
+            m = errorRegex.search(payload["message"])
+            if m:
+                metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, m.group(1), "failure", 1)
+                graphiteHttpPost(metric, m.group(1))
+            else:
+                logger.error("Cannot extract sensor \"%s\""%payload["message"])
+    else:
+        for sensor in Sensors:
+            if sensor in msg.topic:
+                try:
+                    payload = json.loads(msg.payload.decode())
+                except:
+                    logger.error("Cannot parse json \"%s\""%msg.payload.decode())
+                    continue
+                for type, value in payload.items():
+                    if isinstance(value, str):
+                        if value == "ON":
+                            metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 1)
+                        elif value == "OFF":
+                            metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 0)
+                        else:
+                            metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
+                    elif value is not None:
+                        try:
+                            metric = "%s.%s.%s.%s %f"%(args.graphiteKey, Prefix, sensor, type, value)
+                        except TypeError:
+                            logger.error("Invalid type: " + "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value))
+                            metric = None
 
-                if metric is not None:
-                    graphiteHttpPost(metric, sensor)
+                    if metric is not None:
+                        graphiteHttpPost(metric, sensor)
 
 def main():
     global args, token
