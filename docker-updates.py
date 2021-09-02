@@ -3,7 +3,7 @@ import json
 import logging
 import sys
 import re
-from distutils.version import StrictVersion
+from distutils.version import LooseVersion
 import random
 import docker
 import datetime
@@ -22,7 +22,7 @@ except ImportError:
 finally:
     logger.setLevel(logging.INFO)
 
-tagsRe = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+)[^a-zA-Z]+.*")
+tagsRe = re.compile(r"([0-9]+\.[0-9]+\.[0-9]+[-0-9]*)[^a-zA-Z]+")
 
 def getContainersVersion():
     client = docker.from_env()
@@ -33,14 +33,17 @@ def getContainersVersion():
         imagesList.append({"name":tag[0], "tag":tag[1]})
     return imagesList
 
-def sendAlert(key, container):
+def sendAlert(key, container, description):
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     body = {
         "payload": {
             "summary": "Container %s needs updating"%container,
             "timestamp": timestamp,
             "source": appName,
-            "severity": "critical"
+            "severity": "critical",
+            "custom_details": {
+                "description": description
+            }
         },
         "routing_key": key,
         "dedup_key": "docker-update-%s"%container,
@@ -77,7 +80,7 @@ def getLatest(image):
     else:
         logger.error("Failed to get tags for %s"%image)
 
-    versions.sort(key=StrictVersion)
+    versions.sort(key=LooseVersion)
     return versions[-1]
 
 def main():
@@ -87,8 +90,16 @@ def main():
     args = parser.parse_args()
 
     for image in getContainersVersion():
-        logger.debug("%s is running %s while version %s is available"%(image['name'], image['tag'], getLatest(image['name'])))
-        sendAlert(args.pdkey, image['name'])
+        latest = getLatest(image['name'])
+        description = "%s is running %s while version %s is available"%(image['name'], image['tag'], latest)
+        logger.debug(description)
+        try:
+            currentVersion = LooseVersion(image['tag'])
+        except ValueError:
+            logger.error("Version %s for container %s is invalid"%(image['tag'], image['name']))
+        else:
+            if(currentVersion < LooseVersion(latest)):
+               	sendAlert(args.pdkey, image['name'], description)
 
 if __name__ == '__main__':
     main()
