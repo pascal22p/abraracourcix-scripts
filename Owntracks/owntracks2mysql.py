@@ -12,7 +12,6 @@ import argparse
 import requests
 from requests.auth import HTTPBasicAuth
 import re
-import mysql.connector
 
 appName = 'owntracks2mysql'
 
@@ -31,39 +30,21 @@ global Users, LastTimeSent, args, args
 
 Users = ["IphonePascal"]
 
-def sendLocation(payload, mysqlHost, mysqlUser, mysqlPassword):
-    if 'vel' in payload:
-        vel = payload['vel']
+def sendLocation(payload, mysqlUrl, mysqlUser, mysqlPassword, mysqlDatabase):
+    resp = requests.post(
+        mysqlUrl,
+        json=payload,
+        params={'database': mysqlDatabase},
+        auth=(mysqlUser, mysqlPassword))
+    if resp.status_code == 200:
+        logger.info("%s location stored in MySQL"%resp.content.decode())
     else:
-        vel = None
-
-    try:
-        connection = mysql.connector.connect(host=mysqlHost,
-                                         database='grafana',
-                                         user=mysqlUser,
-                                         password=mysqlPassword)
-
-        mySql_insert_query = """INSERT IGNORE INTO locations (`acc`, `alt`, `lat`, `lon`, `tid`, `tst`, `vac`, `vel`, `p`)
-                                VALUES
-                                (%d, %d, %f, %f, '%s', %d, %d, %d, %f) """%(
-                                payload['acc'], payload['alt'], payload['lat'], payload['lon'], payload['tid'], payload['tst'], payload['vac'], payload['vel'], payload['p'])
-        logger.debug(mySql_insert_query)
-        cursor = connection.cursor()
-        cursor.execute(mySql_insert_query)
-        connection.commit()
-        logger.info("%d Record inserted successfully into Laptop table"%cursor.rowcount)
-        cursor.close()
-
-    except mysql.connector.Error as error:
-        logger.error("Failed to insert record into Laptop table {}".format(error))
-    finally:
-        if connection.is_connected():
-            connection.close()
-            logger.debug("MySQL connection is closed")
+        logger.info("Location could not be sent for storage in MySQL: `%s`"%resp.content.decode())
+        resp.raise_for_status()
 
 def on_connect(client, userdata, flags, rc):
-  logger.debug("Connected with result code "+str(rc))
-  client.subscribe([("owntracks/#",0)])
+    logger.debug("Connected with result code "+str(rc))
+    client.subscribe([("owntracks/#",0)])
 
 def on_message_http(client, userdata, msg):
     global args
@@ -78,7 +59,7 @@ def on_message_http(client, userdata, msg):
                 logger.error("Cannot parse json \"%s\""%msg.payload.decode())
                 continue
             if (payload["_type"].lower() == "location"):
-                sendLocation(payload, args.mysqlHost, args.mysqlUser, args.mysqlPassword)
+                sendLocation(payload, args.mysqlLocationUrl, args.mysqlUser, args.mysqlPassword, args.mysqlDatabase)
             elif (payload["_type"].lower() == "steps"):
                 sendSteps(payload)
 
@@ -87,25 +68,20 @@ def main():
     parser = argparse.ArgumentParser(description='subscribe to topics and send data to graphite')
     parser.add_argument('--mqttHost', metavar='MQTTHOST', default="localhost",
                         help='mqtt host')
-    parser.add_argument('--mqttPort', metavar='MQTTPORT', default=8883,
+    parser.add_argument('--mqttPort', metavar='MQTTPORT', default=1883,
                         help='mqtt port', type=int)
-    parser.add_argument('--mqttCert', metavar='MQTTCERT',
-                        help='mqtt client certificate', required=True)
-    parser.add_argument('--mysqlHost', metavar='MYSQLHOST', default="localhost",
+    parser.add_argument('--mysqlLocationUrl', metavar='MYSQLLOCATIONURL', default="https://mysql.parois.net/insertLocation.php",
                         help='myslq host')
     parser.add_argument('--mysqlUser', metavar='MYSQLUSER', default="grafana",
                         help='myslq user')
     parser.add_argument('--mysqlPassword', metavar='MYSQLPASSWORD',
                         help='myslq password', required=True)
+    parser.add_argument('--mysqlDatabase', metavar='MYSQLDATABASE',
+                        help='myslq database', default="grafana")
     args = parser.parse_args()
 
     client = mqtt.Client()
-    client.tls_set(certfile=args.mqttCert)
-    client.tls_insecure_set(True)
-    print("here")
-    f = client.connect(args.mqttHost,args.mqttPort,60)
-    print("done?")
-    print(f)
+    client.connect(args.mqttHost,args.mqttPort,60)
 
     client.on_connect = on_connect
     client.on_message = on_message_http
