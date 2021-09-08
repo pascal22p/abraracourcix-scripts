@@ -41,7 +41,7 @@ End-of-message
       )
     fi
 
-    curl --location --request POST 'https://events.pagerduty.com/v2/enqueue' --header 'Content-Type: application/json' --data-raw "$body"
+    curl --silent --location --request POST 'https://events.pagerduty.com/v2/enqueue' --header 'Content-Type: application/json' --data-raw "$body"
     echo ""
 done
 

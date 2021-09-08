@@ -14,7 +14,7 @@ from requests.auth import HTTPBasicAuth
 import re
 import mysql.connector
 
-appName = 'owntracks2graphite'
+appName = 'owntracks2mysql'
 
 try:
     from systemd.journal import JournalHandler
@@ -25,7 +25,7 @@ except ImportError:
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
 finally:
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
 global Users, LastTimeSent, args, args
 
@@ -102,7 +102,10 @@ def main():
     client = mqtt.Client()
     client.tls_set(certfile=args.mqttCert)
     client.tls_insecure_set(True)
-    client.connect(args.mqttHost,args.mqttPort,60)
+    print("here")
+    f = client.connect(args.mqttHost,args.mqttPort,60)
+    print("done?")
+    print(f)
 
     client.on_connect = on_connect
     client.on_message = on_message_http
@@ -111,6 +114,7 @@ def main():
 
 if __name__ == '__main__':
     try:
+        logger.debug("%s starting"%appName)
         main()
     except Exception as e:
         logger.error('An unexpected error occurred')
