@@ -15,8 +15,9 @@ if ($conn->connect_error) {
 }
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("iiddsiiid", $location['acc'], $location['alt'], $location['lat'], $location['lon'], $location['tid'], $location['tst'], $location['vac'], $location['vel'], $location['p']);
+$stmt->bind_param("iiddsiiid", $location->acc, $location->alt, $location->lat, $location->lon, $location->tid, $location->tst, $location->vac, $location->vel, $location->p);
 $result = $stmt->execute();
+print($result);
 $stmt->close();
 $conn->close();
 
