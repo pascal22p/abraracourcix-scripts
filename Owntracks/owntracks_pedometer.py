@@ -4,7 +4,7 @@ import datetime
 import time
 import json
 import sys
-import paho.mqtt.client as mqtt
+import paho.mqtt.publish as publish
 import logging
 import traceback
 import argparse
@@ -41,16 +41,6 @@ def bodyRequest():
             'to'    : unix_epoch(t),
     })
 
-def on_connect(client, userdata, flags, rc):
-    logger.debug("Connected with result code "+str(rc))
-
-def on_publish(client,userdata,result):             #create function for callback
-    print("data published \n%s\n%s"%(result, userdata))
-    pass
-
-def on_disconnect(client, userdata, rc):
-    print("disconnected with rtn code [%d]"% (rc) )
-
 def main():
     global args
     parser = argparse.ArgumentParser(description='subscribe to topics and send data to graphite')
@@ -60,19 +50,8 @@ def main():
                         help='mqtt port', type=int)
     args = parser.parse_args()
 
-    client = mqtt.Client()
-    client.connect(args.mqttHost,args.mqttPort,60)
+    publish.single("owntracks/user/IphonePascal/cmd", payload=bodyRequest(), qos=2, hostname=args.mqttHost, port=args.mqttPort)
 
-    client.on_connect = on_connect
-    client.on_publish = on_publish
-    client.on_disconnect = on_disconnect
-
-    (rc, mid) = client.publish("owntracks/user/IphonePascal/cmd",bodyRequest(), qos=2)
-    if not rc == mqtt.MQTT_ERR_SUCCESS:
-        logger.error('Code %d while sending message %d: %s' %(rc, mid, mqtt.error_string(rc)))
-    else:
-        logger.debug('Code %d while sending message %d: %s' %(rc, mid, mqtt.error_string(rc)))
-    client.disconnect()
 
 if __name__ == '__main__':
     try:

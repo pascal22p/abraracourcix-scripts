@@ -42,6 +42,18 @@ def sendLocation(payload, mysqlUrl, mysqlUser, mysqlPassword, mysqlDatabase):
         logger.info("Location could not be sent for storage in MySQL: `%s`"%resp.content.decode())
         resp.raise_for_status()
 
+def sendSteps(payload, mysqlUrl, mysqlUser, mysqlPassword, mysqlDatabase):
+    resp = requests.post(
+        mysqlUrl,
+        json=payload,
+        params={'database': mysqlDatabase},
+        auth=(mysqlUser, mysqlPassword))
+    if resp.status_code == 200:
+        logger.info("%s steps stored in MySQL"%resp.content.decode())
+    else:
+        logger.info("Steps could not be sent for storage in MySQL: `%s`"%resp.content.decode())
+        resp.raise_for_status()
+
 def on_connect(client, userdata, flags, rc):
     logger.debug("Connected with result code "+str(rc))
     client.subscribe([("owntracks/#",0)])
@@ -61,7 +73,7 @@ def on_message_http(client, userdata, msg):
             if (payload["_type"].lower() == "location"):
                 sendLocation(payload, args.mysqlLocationUrl, args.mysqlUser, args.mysqlPassword, args.mysqlDatabase)
             elif (payload["_type"].lower() == "steps"):
-                sendSteps(payload)
+                sendSteps(payload, args.mysqlStepsUrl, args.mysqlUser, args.mysqlPassword, args.mysqlDatabase)
 
 def main():
     global args
@@ -71,7 +83,9 @@ def main():
     parser.add_argument('--mqttPort', metavar='MQTTPORT', default=1883,
                         help='mqtt port', type=int)
     parser.add_argument('--mysqlLocationUrl', metavar='MYSQLLOCATIONURL', default="https://mysql.parois.net/insertLocation.php",
-                        help='myslq host')
+                        help='myslq location url')
+    parser.add_argument('--mysqlStepsUrl', metavar='MYSQLSTEPSURL', default="https://mysql.parois.net/insertSteps.php",
+                        help='myslq steps url')
     parser.add_argument('--mysqlUser', metavar='MYSQLUSER', default="grafana",
                         help='myslq user')
     parser.add_argument('--mysqlPassword', metavar='MYSQLPASSWORD',
