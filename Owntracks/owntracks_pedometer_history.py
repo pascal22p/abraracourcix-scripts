@@ -8,6 +8,7 @@ import paho.mqtt.publish as publish
 import logging
 import traceback
 import argparse
+from datetime import timezone
 
 appName = 'owntracksRequestSteps'
 
@@ -23,16 +24,14 @@ finally:
     logger.setLevel(logging.DEBUG)
 
 
-days = 0
-
 def unix_epoch(t):
     return int(time.mktime(t.timetuple()))
 
-def bodyRequest():
+def bodyRequest(offset):
     now = datetime.datetime.today()
 
-    f = now.replace(now.year, now.month, now.day, now.hour - 1, 0, 1, 0)
-    t = now.replace(now.year, now.month, now.day, now.hour - 1, 59, 59, 0)
+    f = now.replace(now.year, now.month, now.day, now.hour, 0, 0, 0) - datetime.timedelta(hours=offset)
+    t = now.replace(now.year, now.month, now.day, now.hour, 59, 59, 0) - datetime.timedelta(hours=offset)
 
     return json.dumps({
             '_type' : 'cmd',
@@ -48,10 +47,19 @@ def main():
                         help='mqtt host')
     parser.add_argument('--mqttPort', metavar='MQTTPORT', default=1883,
                         help='mqtt port', type=int)
+    parser.add_argument('--device', metavar='DEVICE', required=True, action='append',
+                        help='owntracks device name')
+    parser.add_argument('--duration', metavar='MQTTPORT', default=4,
+                        help='number of hours to query', type=int)
     args = parser.parse_args()
 
-    publish.single("owntracks/user/IphonePascal/cmd", payload=bodyRequest(), qos=2, hostname=args.mqttHost, port=args.mqttPort)
+    devices = args.device
 
+    for i in range(0, args.duration):
+        time.sleep(0.5)
+        for device in devices:
+            result = publish.single("owntracks/user/%s/cmd"%device, payload=bodyRequest(i), qos=2, hostname=args.mqttHost, port=args.mqttPort)
+            print("owntracks/user/%s/cmd"%device, result)
 
 if __name__ == '__main__':
     try:
