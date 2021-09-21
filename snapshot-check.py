@@ -31,6 +31,8 @@ def main():
                         help='application secret')
     parser.add_argument('--consumer_key', metavar='CONSUMERKEY', required=True,
                         help='consumer key')
+    parser.add_argument('--vps', metavar='VPSNAME', required=True,
+                        help='vps name')
     args = parser.parse_args()
 
     client = ovh.Client(
@@ -41,7 +43,7 @@ def main():
     )
 
     try:
-        result = client.get('/vps/***REMOVED***/snapshot')
+        result = client.get('/vps/%s/snapshot'%args.name)
     except ovh.exceptions.ResourceNotFoundError:
         logger.error("vps snapshot cannot be found")
     else:

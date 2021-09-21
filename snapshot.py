@@ -25,7 +25,7 @@ finally:
     logger.setLevel(logging.INFO)
 
 
-def waitForOnGoingTask(client, id = None):
+def waitForOnGoingTask(client, vps, id = None):
     logger.debug("Checking for ongoing tasks...")
     waiting = True
     depth = 0
@@ -41,24 +41,24 @@ def waitForOnGoingTask(client, id = None):
         elif duration > 120.0 * 60.0:
             logger.warning("Warning: task taking more than 2 hours")
         if id is None:
-            tasks = client.get('/vps/***REMOVED***/tasks')
+            tasks = client.get("/vps/%s/tasks"%vps)
             for task in tasks:
-                taskResult = client.get('/vps/***REMOVED***/tasks/%s'%task)
+                taskResult = client.get('/vps/%s/tasks/%s'%(vps, task))
                 if taskResult['state']!='done':
                     logger.debug("Waiting for task %s (%s) to finish. progress:%d, state:%s"%(taskResult['type'], taskResult['id'], taskResult['progress'], taskResult['state']))
                     waiting = True
         else:
-            taskResult = client.get('/vps/***REMOVED***/tasks/%s'%id)
+            taskResult = client.get('/vps/%s/tasks/%s'%(vps, id))
             if taskResult['state']!='done':
                 logger.debug("Waiting for task %s (%s) to finish. progress:%d, state:%s"%(taskResult['type'], taskResult['id'], taskResult['progress'], taskResult['state']))
                 waiting = True
         depth += 1
     return 0
 
-def deleteSnapshot(client, depth = 0):
+def deleteSnapshot(client, vps, depth = 0):
     logger.debug("Deleting existing snapshot...")
     try:
-        result = client.delete('/vps/***REMOVED***/snapshot')
+        result = client.delete('/vps/%s/snapshot'%vps)
         return result['id']
     except ovh.exceptions.ResourceNotFoundError:
         pass
@@ -79,6 +79,8 @@ def main():
                         help='application secret')
     parser.add_argument('--consumer_key', metavar='CONSUMERKEY', required=True,
                         help='consumer key')
+    parser.add_argument('--vps', metavar='VPSNAME', required=True,
+                       	help='vps name')
     args = parser.parse_args()
 
     client = ovh.Client(
@@ -95,18 +97,18 @@ def main():
         return
 
     try:
-        result = client.get('/vps/***REMOVED***/snapshot')
+        result = client.get('/vps/%s/snapshot'%args.vps)
     except ovh.exceptions.ResourceNotFoundError:
         deletionNeeded = False
     else:
-        id = deleteSnapshot(client)
-        waitForOnGoingTask(client, id)
+        id = deleteSnapshot(client, args.vps)
+        waitForOnGoingTask(client, args.vps, id)
 
     logger.debug("Creating snapshot...")
-    result = client.post('/vps/***REMOVED***/createSnapshot', description='Automated snapshot')
+    result = client.post('/vps/%s/createSnapshot'%args.vps, description='Automated snapshot')
     id = result['id']
 
-    waitForOnGoingTask(client, id)
+    waitForOnGoingTask(client, args.vps, id)
     duration = time.monotonic() - start
     logger.info("Snapshot created in %.0f minutes"%(duration / 60.0))
 
