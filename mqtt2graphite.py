@@ -24,12 +24,12 @@ except ImportError:
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
 finally:
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
 
 global Sensors, LastTimeSent, args, args
 
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive"]
+Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive", "living-room-socket-tv"]
 errorRegex = re.compile(".*to '([a-zA-Z0-9.-]+)' failed.*")
 
 def graphiteHttpPost(metric, sensor):
