@@ -1,10 +1,11 @@
 <?php
-error_reporting(E_ALL);
+error_reporting(0);
 
 $data = trim(file_get_contents('php://input'));
 
 if(empty($data)) {
-  echo "No content provided";
+  error_log("no content provided");
+  echo("no content provided");
   http_response_code(400);
   exit();
 }
@@ -12,20 +13,15 @@ if(empty($data)) {
 $metrics = explode("\n", $data);
 
 $fp = fsockopen("tcp://127.0.0.1", 2003, $errno, $errstr);
-if (!empty($errno)) {
-  echo $errno;
-  http_response_code(500);
-  exit();
-}
-if (!empty($errstr)) {
-  echo $errstr;
+if (!empty($errno) || !empty($errstr)) {
+  error_log(sprintf("%d - %s", $errno, $errstr));
   http_response_code(500);
   exit();
 }
 
 foreach($metrics as $data) {
   if (strpos($data, "***REMOVED***")===false) {
-    echo "Not authorised";
+    error_log("Not authorised: " . $data);
     http_response_code(401);
     exit();
   } else {
@@ -41,28 +37,22 @@ foreach($metrics as $data) {
   }
 
   try {
-      //$fp = fsockopen("tcp://127.0.0.1", 2003, $errno, $errstr);
-
-      //if (!empty($errno)) echo $errno;
-      //if (!empty($errstr)) echo $errstr;
-
       $bytes = fwrite($fp, $data);
       fflush($fp);
       if($bytes == strlen($data)) {
         echo $data;
       } else {
-        echo "Size does not match";
+        error_log("Size does not match");
         http_response_code(500);
         exit();
       }
   } catch (Exception $e) {
-    echo "\nNetwork error: ".$e->getMessage();
+    error_log("Network error: ".$e->getMessage());
     http_response_code(500);
     exit();
   }
 }
 
 fclose($fp);
-echo "ALL GOOD";
 http_response_code(202);
 ?>
