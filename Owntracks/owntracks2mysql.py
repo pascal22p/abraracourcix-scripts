@@ -38,6 +38,8 @@ def sendLocation(payload, mysqlUrl, mysqlUser, mysqlPassword, mysqlDatabase):
         auth=(mysqlUser, mysqlPassword))
     if resp.status_code == 200:
         logger.info("%s location stored in MySQL"%resp.content.decode())
+    elif resp.status_code == 422:
+        logger.info("%s location already in MySQL"%resp.content.decode())
     else:
         logger.info("Location could not be sent for storage in MySQL: `%s`"%resp.content.decode())
         resp.raise_for_status()
@@ -50,6 +52,8 @@ def sendSteps(payload, mysqlUrl, mysqlUser, mysqlPassword, mysqlDatabase):
         auth=(mysqlUser, mysqlPassword))
     if resp.status_code == 200:
         logger.info("%s steps stored in MySQL"%resp.content.decode())
+    elif resp.status_code == 422:
+        logger.info("%s steps already in MySQL"%resp.content.decode())
     else:
         logger.info("Steps could not be sent for storage in MySQL: `%s`"%resp.content.decode())
         resp.raise_for_status()
@@ -67,6 +71,7 @@ def on_message_http(client, userdata, msg):
         if user in msg.topic:
             try:
                 payload = json.loads(msg.payload.decode())
+                payload["user"]=user
             except:
                 logger.error("Cannot parse json \"%s\""%msg.payload.decode())
                 continue
@@ -107,6 +112,5 @@ if __name__ == '__main__':
         logger.debug("%s starting"%appName)
         main()
     except Exception as e:
-        logger.error('An unexpected error occurred')
-        logger.error("".join(traceback.format_exception(None,e, e.__traceback__)).replace("\n",""))
-        sys.exit(2)
+        logger.error('An unexpected error occurred' + "".join(traceback.format_exception(None,e, e.__traceback__)).replace("\n",""))
+        pass
