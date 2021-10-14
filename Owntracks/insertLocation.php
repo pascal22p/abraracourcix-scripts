@@ -19,12 +19,7 @@ if ($conn->connect_error) {
 
 try {
   $stmt = $conn->prepare($sql);
-  if(property_exists($location, 'vel')) {
-    $vel = $location->vel;
-  } else {
-    $vel = 0;
-  }
-  $stmt->bind_param("iiddsiiids", $location->acc, $location->alt, $location->lat, $location->lon, $location->tid, $location->tst, $location->vac, $vel, $location->p, $location->user);
+  $stmt->bind_param("iiddsiiids", $location->acc, $location->alt, $location->lat, $location->lon, $location->tid, $location->tst, $location->vac, $location->vel, $location->p, $location->user);
   $result = $stmt->execute();
   echo "Success";
   http_response_code(200);

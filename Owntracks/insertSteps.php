@@ -10,7 +10,7 @@ function checkOverlaps($conn, $from, $to) {
   return $result->fetch_object()->cpt > 0;
 }
 
-$sql = "INSERT INTO steps (fromDate, toDate, steps, distance, floorsup, floorsdown, user) VALUES (FROM_UNIXTIME(?), FROM_UNIXTIME(?), ?, ?, ?, ?, ?)";
+$sql = "REPLACE INTO steps (fromDate, toDate, steps, distance, floorsup, floorsdown, user) VALUES (FROM_UNIXTIME(?), FROM_UNIXTIME(?), ?, ?, ?, ?, ?)";
 
 $steps = json_decode(file_get_contents('php://input'));
 
