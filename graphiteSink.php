@@ -1,4 +1,5 @@
 <?php
+include('secret.php');
 error_reporting(0);
 
 $data = trim(file_get_contents('php://input'));
@@ -20,12 +21,12 @@ if (!empty($errno) || !empty($errstr)) {
 }
 
 foreach($metrics as $data) {
-  if (strpos($data, "***REMOVED***")===false) {
+  if (strpos($data, $secretPrefix)===false) {
     error_log("Not authorised: " . $data);
     http_response_code(401);
     exit();
   } else {
-    $data = str_replace("***REMOVED***", "", $data);
+    $data = str_replace($secretPrefix, "", $data);
   }
      
   $pieces = explode(" ", trim($data));
