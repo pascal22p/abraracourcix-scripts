@@ -287,6 +287,5 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as e:
-        logger.error('An unexpected error occurred')
-        logger.error("".join(traceback.format_exception(None,e, e.__traceback__)).replace("\n",""))
-        sys.exit(2)
+        logger.error("An unexpected error occurred" + "".join(traceback.format_exception(None,e, e.__traceback__)).replace("\n",""))
+        pass

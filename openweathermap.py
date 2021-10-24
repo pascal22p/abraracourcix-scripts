@@ -48,6 +48,7 @@ def getWeatherStationData(key, location):
 
     #print(url)
     resp = requests.get(url)
+    #print(resp)
     if resp.status_code == 200:
         try:
             result = resp.json()
@@ -73,6 +74,7 @@ def main():
 
     mqttClient = mqtt.Client()
     mqttClient.connect(args.mqttHost,args.mqttPort,60)
+    #logger.debug("Fetching openweathermap data")
 
     #location = 3333174
     location = {"lat": 55.00014637405377, "lon":-1.5854536921597275}
@@ -96,6 +98,7 @@ def main():
             mqttBodyCurrent["rain_1h"] = mqttBodyHourlyRaw["rain"]["1h"]
     jsonBody = json.dumps(mqttBodyCurrent, separators=(',', ':'))
     logger.info("Sending openweathermap data '%s' to mqtt"%jsonBody)
+    #print(jsonBody)
     mqttClient.publish("openweathermap/openweathermap", jsonBody)
 
 if __name__ == '__main__':

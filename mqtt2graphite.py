@@ -29,9 +29,9 @@ finally:
 global Sensors, LastTimeSent, args, args
 
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1", "kitchen-socket1", "kitchen-socket2", 
+Sensors = ["living-room-sensor1", "garage-socket1", "garage-socket2", "kitchen-socket1", "kitchen-socket2", 
            "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive", "living-room-socket-tv",
-           "kitchen-sensor1", "bedroom-us-sensor1"]
+           "kitchen-sensor1", "bedroom-us-sensor1", "heating-sensor1", "office-socket1"]
 errorRegex = re.compile(".*to '([a-zA-Z0-9.-]+)' failed.*")
 
 def graphiteHttpPost(metric, sensor):
@@ -43,7 +43,6 @@ def graphiteHttpPost(metric, sensor):
         logger.info("%s: sent %s to graphite"%(sensor, metric))
     else:
         logger.error("%s: failed to send %s to graphite"%(sensor, metric))
-        resp.raise_for_status()
 
 def on_connect(client, userdata, flags, rc):
   logger.debug("Connected with result code "+str(rc))
