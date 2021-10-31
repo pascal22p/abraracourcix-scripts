@@ -36,13 +36,18 @@ errorRegex = re.compile(".*to '([a-zA-Z0-9.-]+)' failed.*")
 
 def graphiteHttpPost(metric, sensor):
     global args
-    resp = requests.post(
-        args.graphiteUrl,
-        data=metric.encode())
-    if resp.status_code == 202:
-        logger.info("%s: sent %s to graphite"%(sensor, metric))
+    try:
+        resp = requests.post(
+            args.graphiteUrl,
+            data=metric.encode())
+    except ConnectionError as e:
+        logger.error("%s: failed to send %s to graphite with error %s"%(sensor, metric, str(e)))
+        pass
     else:
-        logger.error("%s: failed to send %s to graphite"%(sensor, metric))
+        if resp.status_code == 202:
+            logger.info("%s: sent %s to graphite"%(sensor, metric))
+        else:
+            logger.error("%s: failed to send %s to graphite"%(sensor, metric))
 
 def on_connect(client, userdata, flags, rc):
   logger.debug("Connected with result code "+str(rc))
