@@ -39,11 +39,13 @@ class State:
     heatingRate = 0.15 # deg/min
     heatingKitchenStart = (6, 0) # (hour, minute)
     heatingKitchenEnd = (8, 30) # (hour, minute)
+    heatingKitchenNightStart = (20, 0)
+    heatingKitchenNightEnd = heatingKitchenStart
     temperatureKitchen = None
     temperatureThreshold = 19.0
     powerTV = None
     lastOnTV = None
-    sleepTime = 60 * 10 # seconds
+    sleepTime = 60 * 10 # 10 min
 
     def format(o):
         if type(o) is datetime.date or type(o) is datetime.datetime:
@@ -60,8 +62,6 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message_http(client, userdata, msg):
     global args, state
-    #logger.debug(msg.payload.decode())
-    #logger.debug(msg.topic)
 
     if msg.topic == "zigbee2mqtt/living-room-socket-tv":
         logger.debug(msg.payload.decode())
@@ -95,6 +95,7 @@ def on_message_http(client, userdata, msg):
        	else:
             state.temperatureKitchen = float(payload['temperature'])
 
+            # switching on heating in morning when needed
             now = datetime.datetime.now()
             start = now.replace(hour=state.heatingKitchenStart[0], minute=state.heatingKitchenStart[1], second=0)
             end = now.replace(hour=state.heatingKitchenEnd[0], minute=state.heatingKitchenEnd[1], second=0)
@@ -107,23 +108,31 @@ def on_message_http(client, userdata, msg):
                     client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"on"}""")
 
     elif msg.topic == "zigbee2mqtt/kitchen-socket2":
+        logger.debug(msg.payload.decode())
+        try:
+            payload = json.loads(msg.payload.decode())
+        except:
+            logger.error("Cannot parse json \"%s\""%msg.payload.decode())
+            return
+
+        # enforce heating off overnight
+        now = datetime.datetime.now()
+        todayNightStart = now.replace(hour=heatingKitchenNightStart[0], minute=heatingKitchenNightStart[1], second=0, microsecond=0)
+        todayNightEnd = now.replace(hour=heatingKitchenNightEnd[0], minute=heatingKitchenNightEnd[1], second=0, microsecond=0)
+        if payload['state'].lower() == "on" and (now > todayNightStart or now < todayNightEnd):
+            state.heatingKitchen = "off"
+            logger.info("Switching kitchen heating off, it should not be on overnight")
+            client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
+
         if state.temperatureKitchen is not None:
-            logger.debug(msg.payload.decode())
-            try:
-                payload = json.loads(msg.payload.decode())
-       	    except:
-                logger.error("Cannot parse json \"%s\""%msg.payload.decode())
-                pass
-            else:
-                logger.debug("State: %s"%(state.json()))
-                state.heatingKitchen = payload['state'].lower() == "on"
-                if (payload['state'].lower() == "on" and state.temperatureKitchen >= state.temperatureThreshold):
-                    logger.info("Turning off kitchen heating")
-                    client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
+            state.heatingKitchen = payload['state'].lower() == "on"
+            if (state.heatingKitchen and state.temperatureKitchen >= state.temperatureThreshold):
+                logger.info("Turning off kitchen heating, temperature reached threshold %d"%state.temperatureThreshold)
+                client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
 
     logger.debug("State: %s"%(state.json()))
 
-def on_publish(client,userdata,result):             #create function for callback
+def on_publish(client,userdata,result):
     logger.debug("data `%s` published \n"%userdata)
 
 def main():
