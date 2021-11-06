@@ -36,7 +36,8 @@ global args, state
 
 class State:
     heatingKitchen = None
-    heatingRate = 0.15 # deg/min
+    heatingRate = 0.10 # deg/min
+    heatingDelay = 15 * 60 # # seconds
     heatingKitchenStart = (6, 0) # (hour, minute)
     heatingKitchenEnd = (8, 30) # (hour, minute)
     temperatureKitchen = None
@@ -100,7 +101,7 @@ def on_message_http(client, userdata, msg):
             end = now.replace(hour=state.heatingKitchenEnd[0], minute=state.heatingKitchenEnd[1], second=0)
             if  (now > start and now < end):
                 duration = (end - now).total_seconds()
-                needed = (state.temperatureThreshold - state.temperatureKitchen) / state.heatingRate * 60
+                needed = (state.temperatureThreshold - state.temperatureKitchen) / state.heatingRate * 60 + state.heatingDelay
                 logger.debug("%d seconds before end time, %d seconds needed"%(duration, needed))
                 if duration <= needed:
                     logger.info("Switching kitchen heating on")
