@@ -19,7 +19,7 @@ if False:
     logger = logging.getLogger(appName)
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
 else:
     try:
         from systemd.journal import JournalHandler
@@ -40,10 +40,12 @@ class State:
     heatingDelay = 15 * 60 # # seconds
     heatingKitchenStart = (6, 0) # (hour, minute)
     heatingKitchenEnd = (8, 30) # (hour, minute)
+    heatingKitchenWantedTime = (7, 45)
     heatingKitchenNightStart = (20, 0)
     heatingKitchenNightEnd = heatingKitchenStart
     temperatureKitchen = None
-    temperatureThreshold = 19.0
+    temperatureThreshold = 18.5 # deg
+    temperatureHysteresis = 0.5 # deg
     powerTV = None
     lastOnTV = None
     sleepTime = 60 * 10 # 10 min
@@ -65,7 +67,7 @@ def on_message_http(client, userdata, msg):
     global args, state
 
     if msg.topic == "zigbee2mqtt/living-room-socket-tv":
-        logger.debug(msg.payload.decode())
+        logger.debug("living-room-socket-tv: " + msg.payload.decode())
         try:
             payload = json.loads(msg.payload.decode())
         except:
@@ -76,8 +78,7 @@ def on_message_http(client, userdata, msg):
                 state.powerTV = float(payload['power']) > 50.0
                 state.lastOnTV = datetime.datetime.now()
 
-            if float(payload['power']) < 50.0 and state.powerTV:
-                state.powerTV = False
+            if state.powerTV:
                 state.lastOnTV = datetime.datetime.now()
 
             if (datetime.datetime.now() - state.lastOnTV).total_seconds() > state.sleepTime and payload['state'].lower() == "on":
@@ -87,7 +88,7 @@ def on_message_http(client, userdata, msg):
                 client.publish("zigbee2mqtt/living-room-socket-tv/set","""{"state":"off"}""")
 
     elif msg.topic == "zigbee2mqtt/kitchen-sensor1":
-        logger.debug(msg.payload.decode())
+        logger.debug("kitchen-sensor1: " + msg.payload.decode())
        	try:
             payload = json.loads(msg.payload.decode())
        	except:
@@ -99,17 +100,17 @@ def on_message_http(client, userdata, msg):
             # switching on heating in morning when needed
             now = datetime.datetime.now()
             start = now.replace(hour=state.heatingKitchenStart[0], minute=state.heatingKitchenStart[1], second=0)
-            end = now.replace(hour=state.heatingKitchenEnd[0], minute=state.heatingKitchenEnd[1], second=0)
-            if  (now > start and now < end):
+            end = now.replace(hour=state.heatingKitchenWantedTime[0], minute=state.heatingKitchenWantedTime[1], second=0)
+            if  (now > start and now < end and not state.heatingKitchen):
                 duration = (end - now).total_seconds()
-                needed = (state.temperatureThreshold - state.temperatureKitchen) / state.heatingRate * 60 + state.heatingDelay
-                logger.debug("%d seconds before end time, %d seconds needed"%(duration, needed))
+                needed = ((state.temperatureThreshold - state.temperatureHysteresis) - state.temperatureKitchen) / state.heatingRate * 60 + state.heatingDelay
+                logger.debug("%d seconds before end time, %d seconds needed. temperature/threshold: %f/%f"%(duration, needed, state.temperatureKitchen, state.temperatureThreshold - state.temperatureHysteresis))
                 if duration <= needed:
                     logger.info("Switching kitchen heating on")
                     client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"on"}""")
 
     elif msg.topic == "zigbee2mqtt/kitchen-socket2":
-        logger.debug(msg.payload.decode())
+        logger.debug("kitchen-socket2: " + msg.payload.decode())
         try:
             payload = json.loads(msg.payload.decode())
         except:
@@ -118,20 +119,28 @@ def on_message_http(client, userdata, msg):
 
         # enforce heating off overnight
         now = datetime.datetime.now()
-        todayNightStart = now.replace(hour=heatingKitchenNightStart[0], minute=heatingKitchenNightStart[1], second=0, microsecond=0)
-        todayNightEnd = now.replace(hour=heatingKitchenNightEnd[0], minute=heatingKitchenNightEnd[1], second=0, microsecond=0)
+        todayNightStart = now.replace(hour=state.heatingKitchenNightStart[0], minute=state.heatingKitchenNightStart[1], second=0, microsecond=0)
+        todayNightEnd = now.replace(hour=state.heatingKitchenNightEnd[0], minute=state.heatingKitchenNightEnd[1], second=0, microsecond=0)
         if payload['state'].lower() == "on" and (now > todayNightStart or now < todayNightEnd):
-            state.heatingKitchen = "off"
+            state.heatingKitchen = false
             logger.info("Switching kitchen heating off, it should not be on overnight")
+            client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
+
+        # enforce switching heating off after heatingKitchenEnd
+        now = datetime.datetime.now()
+        todayMorning = now.replace(hour=state.heatingKitchenEnd[0], minute=state.heatingKitchenEnd[1], second=0, microsecond=0)
+        if payload['state'].lower() == "on" and (now - todayMorning).total_seconds() > 0 and (now - todayMorning).total_seconds() < 60.0:
+            state.heatingKitchen = false
+            logger.info("Switching kitchen heating off, overunning morning setting")
             client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
 
         if state.temperatureKitchen is not None:
             state.heatingKitchen = payload['state'].lower() == "on"
-            if (state.heatingKitchen and state.temperatureKitchen >= state.temperatureThreshold):
+            if (state.heatingKitchen and state.temperatureKitchen >= state.temperatureThreshold + state.temperatureHysteresis):
                 logger.info("Turning off kitchen heating, temperature reached threshold %d"%state.temperatureThreshold)
                 client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
+                state.heatingKitchen = false
 
-    logger.debug("State: %s"%(state.json()))
 
 def on_publish(client,userdata,result):
     logger.debug("data `%s` published \n"%userdata)
