@@ -79,6 +79,8 @@ def on_message_http(client, userdata, msg):
                 sendLocation(payload, args.mysqlLocationUrl, args.mysqlUser, args.mysqlPassword, args.mysqlDatabase)
             elif (payload["_type"].lower() == "steps"):
                 sendSteps(payload, args.mysqlStepsUrl, args.mysqlUser, args.mysqlPassword, args.mysqlDatabase)
+            else:
+                logger.info(json.dumps(payload, separators=(',', ':')))
 
 def main():
     global args
