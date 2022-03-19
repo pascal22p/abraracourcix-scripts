@@ -43,7 +43,7 @@ def main():
     )
 
     try:
-        result = client.get('/vps/%s/snapshot'%args.name)
+        result = client.get('/vps/%s/snapshot'%args.vps)
     except ovh.exceptions.ResourceNotFoundError:
         logger.error("vps snapshot cannot be found")
     else:
