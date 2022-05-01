@@ -1,3 +1,4 @@
+
 # -*- encoding: utf-8 -*-
 '''
 First, install the latest release of Python wrapper: $ pip install ovh
@@ -13,17 +14,22 @@ import argparse
 
 appName = "snapshot"
 
-try:
-    from systemd.journal import JournalHandler
-    logger = logging.getLogger(appName)
-    logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
-except ImportError:
+if True:
+    try:
+        from systemd.journal import JournalHandler
+        logger = logging.getLogger(appName)
+        logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
+    except ImportError:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+    finally:
+        logger.setLevel(logging.INFO)
+else:
     logger = logging.getLogger(appName)
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
-finally:
     logger.setLevel(logging.INFO)
-
 
 def waitForOnGoingTask(client, vps, id = None):
     logger.debug("Checking for ongoing tasks...")
@@ -92,7 +98,7 @@ def main():
 
     start = time.monotonic()
 
-    if waitForOnGoingTask(client) == -1:
+    if waitForOnGoingTask(client, args.vps) == -1:
         logger.error("Cannot create new snapshot, an ongoing task is still running after 4 hours.")
         return
 

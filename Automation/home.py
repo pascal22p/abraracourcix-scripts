@@ -36,15 +36,15 @@ global args, state
 
 class State:
     heatingKitchen = None
-    heatingRate = 0.10 # deg/min
-    heatingDelay = 15 * 60 # # seconds
+    heatingRate = 0.12 # deg/min
+    heatingDelay = 10 * 60 # # seconds
     heatingKitchenStart = (6, 0) # (hour, minute)
     heatingKitchenEnd = (8, 30) # (hour, minute)
     heatingKitchenWantedTime = (7, 45)
     heatingKitchenNightStart = (20, 0)
     heatingKitchenNightEnd = heatingKitchenStart
     temperatureKitchen = None
-    temperatureThreshold = 18.5 # deg
+    temperatureThreshold = 19.0 # deg
     temperatureHysteresis = 0.5 # deg
     powerTV = None
     lastOnTV = None
@@ -108,6 +108,7 @@ def on_message_http(client, userdata, msg):
                 if duration <= needed:
                     logger.info("Switching kitchen heating on")
                     client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"on"}""")
+                    state.heatingKitchen = True
 
     elif msg.topic == "zigbee2mqtt/kitchen-socket2":
         logger.debug("kitchen-socket2: " + msg.payload.decode())
@@ -122,7 +123,7 @@ def on_message_http(client, userdata, msg):
         todayNightStart = now.replace(hour=state.heatingKitchenNightStart[0], minute=state.heatingKitchenNightStart[1], second=0, microsecond=0)
         todayNightEnd = now.replace(hour=state.heatingKitchenNightEnd[0], minute=state.heatingKitchenNightEnd[1], second=0, microsecond=0)
         if payload['state'].lower() == "on" and (now > todayNightStart or now < todayNightEnd):
-            state.heatingKitchen = false
+            state.heatingKitchen = False
             logger.info("Switching kitchen heating off, it should not be on overnight")
             client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
 
@@ -130,7 +131,7 @@ def on_message_http(client, userdata, msg):
         now = datetime.datetime.now()
         todayMorning = now.replace(hour=state.heatingKitchenEnd[0], minute=state.heatingKitchenEnd[1], second=0, microsecond=0)
         if payload['state'].lower() == "on" and (now - todayMorning).total_seconds() > 0 and (now - todayMorning).total_seconds() < 60.0:
-            state.heatingKitchen = false
+            state.heatingKitchen = False
             logger.info("Switching kitchen heating off, overunning morning setting")
             client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
 
@@ -139,7 +140,7 @@ def on_message_http(client, userdata, msg):
             if (state.heatingKitchen and state.temperatureKitchen >= state.temperatureThreshold + state.temperatureHysteresis):
                 logger.info("Turning off kitchen heating, temperature reached threshold %d"%state.temperatureThreshold)
                 client.publish("zigbee2mqtt/kitchen-socket2/set","""{"state":"off"}""")
-                state.heatingKitchen = false
+                state.heatingKitchen = False
 
 
 def on_publish(client,userdata,result):
