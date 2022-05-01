@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import docker
 import sys
 import socket
