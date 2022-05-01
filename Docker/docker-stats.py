@@ -48,7 +48,11 @@ def docker_stats(prefix, docker_path):
         number_cpus = stats['cpu_stats']['online_cpus']
         cpu_usage = (cpu_delta / system_cpu_delta) * number_cpus * 100.0
 
-        used_memory = stats['memory_stats']['usage'] - stats['memory_stats']['stats']['cache']
+        if 'cache' in stats['memory_stats']['stats']:
+            cache = stats['memory_stats']['stats']['cache']
+        else:
+            cache = 0
+        used_memory = stats['memory_stats']['usage'] - cache
         available_memory = stats['memory_stats']['limit']
         memory_usage = (used_memory / available_memory) * 100.0
 
