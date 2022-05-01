@@ -21,9 +21,9 @@ except ImportError:
 finally:
     logger.setLevel(logging.INFO)
 
-def docker_stats(prefix):
+def docker_stats(prefix, docker_path):
     try:
-        client = docker.DockerClient(base_url="unix://Users/pascalparois/.colima/docker.sock")
+        client = docker.DockerClient(base_url="unix:/%s"%docker_path)
     except Exception as e:
         logger.error("Could not connect to docker (%s)"%e)
         sys.exit(2)
@@ -65,9 +65,11 @@ def main():
     parser = argparse.ArgumentParser(description='Create a snapshot of the vps')
     parser.add_argument('--prefix', metavar='PREFIX', required=True,
                         help='graphite prefix')
+    parser.add_argument('--docker', metavar='DOCKER', required=True,
+                        help='docker socket path')
     args = parser.parse_args()
 
-    docker_stats("pascal.laptop")
+    docker_stats(args.prefix, args.docker)
 
 if __name__ == '__main__':
     try:
