@@ -3,7 +3,7 @@ import json
 import logging
 import sys
 import re
-from distutils.version import LooseVersion
+from packaging.version import Version, parse
 import random
 import docker
 import datetime
@@ -76,11 +76,13 @@ def getLatest(image):
         for tag in tags:
             match = tagsRe.match(tag)
             if match is not None:
-                versions.append(match.group(1))
+                version = parse(match.group(1))
+                if not version.is_prerelease:
+                    versions.append(version)
     else:
         logger.error("Failed to get tags for %s"%image)
 
-    versions.sort(key=LooseVersion)
+    versions.sort()
     return versions[-1]
 
 def main():
@@ -90,16 +92,17 @@ def main():
     args = parser.parse_args()
 
     for image in getContainersVersion():
-        latest = getLatest(image['name'])
+        latest = getLatest(image['name'].replace("-apache", ""))
         description = "%s is running %s while version %s is available"%(image['name'], image['tag'], latest)
         logger.debug(description)
-        try:
-            currentVersion = LooseVersion(image['tag'])
-        except ValueError:
-            logger.error("Version %s for container %s is invalid"%(image['tag'], image['name']))
-        else:
-            if(currentVersion < LooseVersion(latest)):
-               	sendAlert(args.pdkey, image['name'], description)
+        if latest is not None:
+            try:
+                currentVersion = parse(image['tag'])
+            except ValueError:
+                logger.error("Version %s for container %s is invalid"%(image['tag'], image['name']))
+            else:
+                if(currentVersion < latest):
+                    sendAlert(args.pdkey, image['name'], description)
 
 if __name__ == '__main__':
     main()
