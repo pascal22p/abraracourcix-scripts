@@ -97,7 +97,7 @@ def main():
         for measure in gasData:
             if measure["consumption"] > 0:
                 metric = "%s.%s %f %d"%(args.graphiteKey, "energy.gas.consumption", measure["consumption"], dateParse.parse(measure["interval_end"]).timestamp())
-                metrics += metric + "\n"
+                metrics += "\n"
         if metrics:
             graphiteHttpPost(args.graphiteUrl, metrics)
 
@@ -107,7 +107,7 @@ def main():
         for measure in elecData:
             if measure["consumption"] > 0:
                 metric = "%s.%s %f %d"%(args.graphiteKey, "energy.electricity.consumption", measure["consumption"], dateParse.parse(measure["interval_end"]).timestamp())
-                metrics += metric + "\n"
+                metrics += "\n"
         if metrics:
             graphiteHttpPost(args.graphiteUrl, metrics)
 
