@@ -97,6 +97,14 @@ def main():
         target = data["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["heatCelsius"]
     else:
         target = None
+    if "status" in data["traits"]["sdm.devices.traits.ThermostatHvac"]:
+        if data["traits"]["sdm.devices.traits.ThermostatHvac"]["status"] == "HEATING":
+            status = 1
+        else:
+            status = 0
+    else:
+        status = None
+
     timestamp = time.time()
 
     metrics = "%s.%s %f %d"%(args.graphiteKey, "google-nest.temperature", temperature, timestamp)
@@ -105,6 +113,9 @@ def main():
     metrics += "\n"
     if target is not None:
         metrics += "%s.%s %f %d"%(args.graphiteKey, "google-nest.target-temperature", target, timestamp)
+        metrics += "\n"
+    if status is not None:
+        metrics += "%s.%s %f %d"%(args.graphiteKey, "google-nest.status", status, timestamp)
         metrics += "\n"
     graphiteHttpPost(args.graphiteUrl, metrics)
 
