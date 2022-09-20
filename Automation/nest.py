@@ -93,12 +93,19 @@ def main():
 
     humidity = data["traits"]["sdm.devices.traits.Humidity"]["ambientHumidityPercent"]
     temperature = data["traits"]["sdm.devices.traits.Temperature"]["ambientTemperatureCelsius"]
+    if "heatCelsius" in data["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]:
+        target = data["traits"]["sdm.devices.traits.ThermostatTemperatureSetpoint"]["heatCelsius"]
+    else:
+        target = None
     timestamp = time.time()
 
-    metrics = "%s.%s %f %d"%(args.graphiteKey, "zigbee2mqtt.googleNest.temperature", temperature, timestamp)
+    metrics = "%s.%s %f %d"%(args.graphiteKey, "google-nest.temperature", temperature, timestamp)
     metrics += "\n"
-    metrics += "%s.%s %f %d"%(args.graphiteKey, "zigbee2mqtt.googleNest.humidity", humidity, timestamp)
+    metrics += "%s.%s %f %d"%(args.graphiteKey, "google-nest.humidity", humidity, timestamp)
     metrics += "\n"
+    if target is not None:
+        metrics += "%s.%s %f %d"%(args.graphiteKey, "google-nest.target-temperature", target, timestamp)
+        metrics += "\n"
     graphiteHttpPost(args.graphiteUrl, metrics)
 
 if __name__ == '__main__':
