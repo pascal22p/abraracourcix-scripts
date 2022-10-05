@@ -9,7 +9,7 @@ from dateutil import parser as dateParse
 
 appName = 'OctopusEnergy'
 
-if True:
+if False:
     logger = logging.getLogger(appName)
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
