@@ -29,9 +29,10 @@ finally:
 global Sensors, LastTimeSent, args, args
 
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1", "garage-socket2", "kitchen-socket1", "kitchen-socket2", 
+Sensors = ["living-room-sensor1", "stairs-networks", "kitchen-fridge", "kitchen-washing", "kitchen-dryer", "kitchen-dishwasher",
            "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive", "living-room-socket-tv",
-           "kitchen-sensor1", "bedroom-us-sensor1", "heating-sensor1", "office-socket1"]
+           "kitchen-sensor1", "bedroom-us-sensor1", "upstairs-sensor1", "dining-room-sensor1", 
+           "bedroom-master-sensor1", "garage-sensor1", "Boiler_CH"]
 errorRegex = re.compile(".*to '([a-zA-Z0-9.-]+)' failed.*")
 
 def graphiteHttpPost(metric, sensor):
@@ -71,8 +72,8 @@ def on_message_http(client, userdata, msg):
             if m:
                 metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, m.group(1), "failure", 1)
                 graphiteHttpPost(metric, m.group(1))
-            else:
-                logger.error("Cannot extract sensor \"%s\""%payload["message"])
+            #else:
+            #    logger.error("Cannot extract sensor \"%s\""%payload["message"])
     else:
         for sensor in Sensors:
             if sensor in msg.topic:
@@ -89,6 +90,8 @@ def on_message_http(client, userdata, msg):
                             metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 0)
                         else:
                             metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
+                    elif isinstance(value, dict):
+                        metric = None
                     elif value is not None:
                         try:
                             metric = "%s.%s.%s.%s %f"%(args.graphiteKey, Prefix, sensor, type, value)
