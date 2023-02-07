@@ -15,16 +15,22 @@ import re
 
 appName = 'mqtt2graphite'
 
-try:
-    from systemd.journal import JournalHandler
-    logger = logging.getLogger(appName)
-    logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
-except ImportError:
-    logger = logging.getLogger(appName)
-    stdout = logging.StreamHandler(sys.stdout)
-    logger.addHandler(stdout)
-finally:
-    logger.setLevel(logging.INFO)
+if False:
+    try:
+        from systemd.journal import JournalHandler
+        logger = logging.getLogger(appName)
+        logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
+    except ImportError:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+    finally:
+        logger.setLevel(logging.INFO)
+else:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+        logger.setLevel(logging.DEBUG)
 
 global Sensors, LastTimeSent, args, args
 
@@ -32,7 +38,7 @@ Prefix = "zigbee2mqtt"
 Sensors = ["living-room-sensor1", "stairs-networks", "kitchen-fridge", "kitchen-washing", "kitchen-dryer", "kitchen-dishwasher",
            "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive", "living-room-socket-tv",
            "kitchen-sensor1", "bedroom-us-sensor1", "upstairs-sensor1", "dining-room-sensor1", 
-           "bedroom-master-sensor1", "garage-sensor1", "Boiler_CH"]
+           "bedroom-master-sensor1", "garage-sensor1", "Boiler_CH", "kitchen-kettle"]
 errorRegex = re.compile(".*to '([a-zA-Z0-9.-]+)' failed.*")
 
 def graphiteHttpPost(metric, sensor):
@@ -59,6 +65,7 @@ def on_message_http(client, userdata, msg):
     logger.debug(msg.payload.decode())
     logger.debug(Sensors)
     logger.debug(msg.topic)
+    metric = None
     if msg.topic == "zigbee2mqtt/bridge/logging":
         try:
             payload = json.loads(msg.payload.decode())
@@ -72,10 +79,12 @@ def on_message_http(client, userdata, msg):
             if m:
                 metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, m.group(1), "failure", 1)
                 graphiteHttpPost(metric, m.group(1))
-            #else:
+            else:
+                metric = None
             #    logger.error("Cannot extract sensor \"%s\""%payload["message"])
     else:
         for sensor in Sensors:
+            metric = None
             if sensor in msg.topic:
                 try:
                     payload = json.loads(msg.payload.decode())
