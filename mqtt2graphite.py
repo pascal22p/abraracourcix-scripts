@@ -45,7 +45,7 @@ def graphiteSend(metric, sensor):
     global args
     try:
         conn = socket.create_connection(("localhost", 2003))
-        conn.send("%s\n"%(metric).encode('utf-8'))
+        conn.send(("%s\n"%(metric)).encode('utf-8'))
         conn.close()
     except ConnectionError as e:
         logger.error("%s: failed to send %s to graphite with error %s"%(sensor, metric, str(e)))
@@ -121,7 +121,7 @@ def main():
     client.connect(args.mqttHost,args.mqttPort,60)
 
     client.on_connect = on_connect
-    client.on_message = on_message_http
+    client.on_message = on_message
 
     client.loop_forever()
 
