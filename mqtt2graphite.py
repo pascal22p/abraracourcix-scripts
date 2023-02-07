@@ -15,7 +15,7 @@ import re
 
 appName = 'mqtt2graphite'
 
-if False:
+if True:
     try:
         from systemd.journal import JournalHandler
         logger = logging.getLogger(appName)
@@ -45,8 +45,9 @@ def graphiteSend(metric, sensor):
     global args
     try:
         conn = socket.create_connection(("localhost", 2003))
-        conn.send(("%s\n"%(metric)).encode('utf-8'))
+        conn.send(("%s %f\n"%(metric, time.time())).encode('utf-8'))
         conn.close()
+        logger.info("Sent `" + metric + "` to graphite")
     except ConnectionError as e:
         logger.error("%s: failed to send %s to graphite with error %s"%(sensor, metric, str(e)))
         pass
