@@ -12,6 +12,7 @@ import argparse
 import requests
 from requests.auth import HTTPBasicAuth
 import re
+import mysql.connector
 
 appName = 'owntracks2mysql'
 
@@ -26,37 +27,54 @@ except ImportError:
 finally:
     logger.setLevel(logging.DEBUG)
 
-global Users, LastTimeSent, args, args
+global Users, LastTimeSent, args
 
 Users = ["IphonePascal"]
 
-def sendLocation(payload, mysqlUrl, mysqlUser, mysqlPassword, mysqlDatabase):
-    resp = requests.post(
-        mysqlUrl,
-        json=payload,
-        params={'database': mysqlDatabase},
-        auth=(mysqlUser, mysqlPassword))
-    if resp.status_code == 200:
-        logger.info("%s location stored in MySQL"%resp.content.decode())
-    elif resp.status_code == 422:
-        logger.info("%s location already in MySQL"%resp.content.decode())
-    else:
-        logger.info("Location could not be sent for storage in MySQL: `%s`"%resp.content.decode())
-        resp.raise_for_status()
+def insertSteps(mysqlUser, mysqlPassword, database, steps):
+    try:
+        mydb = mysql.connector.connect(
+          host="localhost",
+          port=3307,
+          user=mysqlUser,
+          password=mysqlPassword,
+          database=database
+        )
 
-def sendSteps(payload, mysqlUrl, mysqlUser, mysqlPassword, mysqlDatabase):
-    resp = requests.post(
-        mysqlUrl,
-        json=payload,
-        params={'database': mysqlDatabase},
-        auth=(mysqlUser, mysqlPassword))
-    if resp.status_code == 200:
-        logger.info("%s steps stored in MySQL"%resp.content.decode())
-    elif resp.status_code == 422:
-        logger.info("%s steps already in MySQL"%resp.content.decode())
-    else:
-        logger.info("Steps could not be sent for storage in MySQL: `%s`"%resp.content.decode())
-        resp.raise_for_status()
+        mycursor = mydb.cursor()
+
+        sql = "REPLACE INTO steps (fromDate, toDate, steps, distance, floorsup, floorsdown, user) VALUES (FROM_UNIXTIME(%s), FROM_UNIXTIME(%s), %s, %s, %s, %s, %s)"
+        val = (steps['from'], steps['to'], steps['steps'], steps['distance'], steps['floorsup'], steps['floorsdown'], steps['user'])
+        mycursor.execute(sql, val)
+
+        mydb.commit()
+        mycursor.close()
+        mydb.close()
+    except Exception as e:
+        logging.info('Cannot insert location in database', exc_info=e)
+        continue
+
+def insertLocation(mysqlUser, mysqlPassword, database, location):
+    try:
+        mydb = mysql.connector.connect(
+          host="localhost",
+          user=mysqlUser,
+          password=mysqlPassword,
+          database=database
+        )
+
+        mycursor = mydb.cursor()
+
+        sql = "REPLACE INTO locations (acc, alt, lat, lon, tid, tst, vac, vel, p, user) VALUES (%s, %s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s, %s)"
+        val = (location['acc'], location['alt'], location['lat'], location['lon'], location['tid'], location['tst'], location['vac'], location['vel'], location['p'], location['user'])
+        mycursor.execute(sql, val)
+
+        mydb.commit()
+        mycursor.close()
+        mydb.close()
+    except Exception as e:
+        logging.info('Cannot insert location in database', exc_info=e)
+        continue
 
 def on_connect(client, userdata, flags, rc):
     logger.debug("Connected with result code "+str(rc))
@@ -76,9 +94,9 @@ def on_message_http(client, userdata, msg):
                 logger.error("Cannot parse json \"%s\""%msg.payload.decode())
                 continue
             if (payload["_type"].lower() == "location"):
-                sendLocation(payload, args.mysqlLocationUrl, args.mysqlUser, args.mysqlPassword, args.mysqlDatabase)
+                insertLocation(args.mysqlUser, args.mysqlPassword, args.mysqlDatabase, payload)
             elif (payload["_type"].lower() == "steps"):
-                sendSteps(payload, args.mysqlStepsUrl, args.mysqlUser, args.mysqlPassword, args.mysqlDatabase)
+                insertSteps(args.mysqlUser, args.mysqlPassword, args.mysqlDatabase, payload)
             else:
                 logger.info(json.dumps(payload, separators=(',', ':')))
 
@@ -89,10 +107,6 @@ def main():
                         help='mqtt host')
     parser.add_argument('--mqttPort', metavar='MQTTPORT', default=1883,
                         help='mqtt port', type=int)
-    parser.add_argument('--mysqlLocationUrl', metavar='MYSQLLOCATIONURL', default="https://mysql.parois.net/insertLocation.php",
-                        help='myslq location url')
-    parser.add_argument('--mysqlStepsUrl', metavar='MYSQLSTEPSURL', default="https://mysql.parois.net/insertSteps.php",
-                        help='myslq steps url')
     parser.add_argument('--mysqlUser', metavar='MYSQLUSER', default="grafana",
                         help='myslq user')
     parser.add_argument('--mysqlPassword', metavar='MYSQLPASSWORD',
