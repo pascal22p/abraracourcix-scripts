@@ -16,15 +16,21 @@ import mysql.connector
 
 appName = 'owntracks2mysql'
 
-try:
-    from systemd.journal import JournalHandler
-    logger = logging.getLogger(appName)
-    logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
-except ImportError:
+if False:
+    try:
+        from systemd.journal import JournalHandler
+        logger = logging.getLogger(appName)
+        logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
+    except ImportError:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+    finally:
+        logger.setLevel(logging.DEBUG)
+else:
     logger = logging.getLogger(appName)
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
-finally:
     logger.setLevel(logging.DEBUG)
 
 global Users, LastTimeSent, args
@@ -106,7 +112,7 @@ def main():
     parser.add_argument('--mqttPort', metavar='MQTTPORT', default=1883,
                         help='mqtt port', type=int)
     parser.add_argument('--mysqlUser', metavar='MYSQLUSER', default="grafana",
-                        help='myslq user')
+                        help='myslql user')
     parser.add_argument('--mysqlPassword', metavar='MYSQLPASSWORD',
                         help='myslq password', required=True)
     parser.add_argument('--mysqlDatabase', metavar='MYSQLDATABASE',

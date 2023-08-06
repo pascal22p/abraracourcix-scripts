@@ -30,7 +30,7 @@ def docker_stats(prefix, docker_path):
 
     try:
         sock = socket.socket()
-        sock.connect(("localhost", 2003))
+        sock.connect(("192.168.1.2", 2003))
     except Exception as e:
         logger.error("Could not connect to socket (%s)"%e)
         sys.exit(2)
