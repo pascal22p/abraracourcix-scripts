@@ -52,7 +52,6 @@ def insertSteps(mysqlUser, mysqlPassword, database, steps):
         mydb.close()
     except Exception as e:
         logging.info('Cannot insert location in database', exc_info=e)
-        continue
 
 def insertLocation(mysqlUser, mysqlPassword, database, location):
     try:
@@ -74,7 +73,6 @@ def insertLocation(mysqlUser, mysqlPassword, database, location):
         mydb.close()
     except Exception as e:
         logging.info('Cannot insert location in database', exc_info=e)
-        continue
 
 def on_connect(client, userdata, flags, rc):
     logger.debug("Connected with result code "+str(rc))
