@@ -16,7 +16,7 @@ import mysql.connector
 
 appName = 'owntracks2mysql'
 
-if False:
+if True:
     try:
         from systemd.journal import JournalHandler
         logger = logging.getLogger(appName)
@@ -57,12 +57,13 @@ def insertSteps(mysqlUser, mysqlPassword, database, steps):
         mycursor.close()
         mydb.close()
     except Exception as e:
-        logging.info('Cannot insert location in database', exc_info=e)
+        logger.error('Cannot insert location in database', exc_info=e)
 
 def insertLocation(mysqlUser, mysqlPassword, database, location):
     try:
         mydb = mysql.connector.connect(
           host="localhost",
+          port=3307,
           user=mysqlUser,
           password=mysqlPassword,
           database=database
@@ -70,15 +71,20 @@ def insertLocation(mysqlUser, mysqlPassword, database, location):
 
         mycursor = mydb.cursor()
 
+        if 'vel' in location:
+          vel = location['vel']
+        else:
+          vel = None
+
         sql = "REPLACE INTO locations (acc, alt, lat, lon, tid, tst, vac, vel, p, user) VALUES (%s, %s, %s, %s, %s, FROM_UNIXTIME(%s), %s, %s, %s, %s)"
-        val = (location['acc'], location['alt'], location['lat'], location['lon'], location['tid'], location['tst'], location['vac'], location['vel'], location['p'], location['user'])
+        val = (location['acc'], location['alt'], location['lat'], location['lon'], location['tid'], location['tst'], location['vac'], vel, location['p'], location['user'])
         mycursor.execute(sql, val)
 
         mydb.commit()
         mycursor.close()
         mydb.close()
     except Exception as e:
-        logging.info('Cannot insert location in database', exc_info=e)
+        logger.error('Cannot insert location in database', exc_info=e)
 
 def on_connect(client, userdata, flags, rc):
     logger.debug("Connected with result code "+str(rc))
