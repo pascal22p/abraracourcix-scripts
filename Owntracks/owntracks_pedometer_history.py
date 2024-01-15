@@ -12,17 +12,22 @@ from datetime import timezone
 
 appName = 'owntracksRequestSteps'
 
-try:
-    from systemd.journal import JournalHandler
-    logger = logging.getLogger(appName)
-    logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
-except ImportError:
-    logger = logging.getLogger(appName)
-    stdout = logging.StreamHandler(sys.stdout)
-    logger.addHandler(stdout)
-finally:
-    logger.setLevel(logging.DEBUG)
-
+if False:
+    try:
+        from systemd.journal import JournalHandler
+        logger = logging.getLogger(appName)
+        logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
+    except ImportError:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+    finally:
+        logger.setLevel(logging.DEBUG)
+else:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+        logger.setLevel(logging.DEBUG)
 
 def unix_epoch(t):
     return int(time.mktime(t.timetuple()))

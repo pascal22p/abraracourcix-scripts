@@ -77,6 +77,7 @@ def on_message(client, userdata, msg):
                 graphiteSend(metric, m.group(1))
             else:
                 metric = None
+            #else:
             #    logger.error("Cannot extract sensor \"%s\""%payload["message"])
     else:
         for sensor in Sensors:
