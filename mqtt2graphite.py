@@ -38,7 +38,7 @@ Prefix = "zigbee2mqtt"
 Sensors = ["living-room-sensor1", "stairs-networks", "kitchen-fridge", "kitchen-washing", "kitchen-dryer", "kitchen-dishwasher",
            "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive", "living-room-socket-tv",
            "kitchen-sensor1", "bedroom-us-sensor1", "upstairs-sensor1", "dining-room-sensor1",
-           "bedroom-master-sensor1", "garage-sensor1", "Boiler_CH", "kitchen-kettle"]
+           "bedroom-master-sensor1", "garage-sensor1", "Boiler_CH", "kitchen-kettle", "office-socket"]
 errorRegex = re.compile(".*to '([a-zA-Z0-9.-]+)' failed.*")
 
 def graphiteSend(metric, sensor):
@@ -69,11 +69,11 @@ def on_message(client, userdata, msg):
             logger.error("Cannot parse json \"%s\""%msg.payload.decode())
             pass
         else:
-            metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, "logging", payload["level"], 1)
+            metric = "%s.%s.%s %d"%(Prefix, "logging", payload["level"], 1)
             graphiteSend(metric, "logging/%s"%payload["level"])
             m = errorRegex.search(payload["message"])
             if m:
-                metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, m.group(1), "failure", 1)
+                metric = "%s.%s.%s %d"%(Prefix, m.group(1), "failure", 1)
                 graphiteSend(metric, m.group(1))
             else:
                 metric = None

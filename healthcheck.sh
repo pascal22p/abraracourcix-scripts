@@ -6,3 +6,4 @@
 #/usr/bin/mosquitto_pub -t zigbee2mqtt/stairs-networks/get -m '{"state":""}'
 /usr/bin/mosquitto_pub -t zigbee2mqtt/living-room-socket-tv/get -m '{"state":""}'
 /usr/bin/mosquitto_pub -t zigbee2mqtt/kitchen-kettle/get -m '{"state":""}'
+/usr/bin/mosquitto_pub -t zigbee2mqtt/office-socket/get -m '{"state":""}'
