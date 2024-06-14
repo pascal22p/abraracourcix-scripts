@@ -15,49 +15,53 @@ import re
 
 appName = 'mqtt2graphite'
 
-try:
-    from systemd.journal import JournalHandler
-    logger = logging.getLogger(appName)
-    logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
-except ImportError:
-    logger = logging.getLogger(appName)
-    stdout = logging.StreamHandler(sys.stdout)
-    logger.addHandler(stdout)
-finally:
-    logger.setLevel(logging.INFO)
+if True:
+    try:
+        from systemd.journal import JournalHandler
+        logger = logging.getLogger(appName)
+        logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
+    except ImportError:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+    finally:
+        logger.setLevel(logging.INFO)
+else:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+        logger.setLevel(logging.DEBUG)
 
 global Sensors, LastTimeSent, args, args
 
 Prefix = "zigbee2mqtt"
-Sensors = ["living-room-sensor1", "garage-socket1", "garage-socket2", "kitchen-socket1", "kitchen-socket2", 
+Sensors = ["living-room-sensor1", "stairs-networks", "kitchen-fridge", "kitchen-washing", "kitchen-dryer", "kitchen-dishwasher",
            "metoffice", "noweather", "netatmo", "openweathermap", "KeepAlive", "living-room-socket-tv",
-           "kitchen-sensor1", "bedroom-us-sensor1", "heating-sensor1", "office-socket1"]
+           "kitchen-sensor1", "bedroom-us-sensor1", "upstairs-sensor1", "dining-room-sensor1",
+           "bedroom-master-sensor1", "garage-sensor1", "Boiler_CH", "kitchen-kettle", "office-socket"]
 errorRegex = re.compile(".*to '([a-zA-Z0-9.-]+)' failed.*")
 
-def graphiteHttpPost(metric, sensor):
+def graphiteSend(metric, sensor):
     global args
     try:
-        resp = requests.post(
-            args.graphiteUrl,
-            data=metric.encode())
+        conn = socket.create_connection(("localhost", 2003))
+        conn.send(("%s %f\n"%(metric, time.time())).encode('utf-8'))
+        conn.close()
+        logger.info("Sent `" + metric + "` to graphite")
     except ConnectionError as e:
         logger.error("%s: failed to send %s to graphite with error %s"%(sensor, metric, str(e)))
         pass
-    else:
-        if resp.status_code == 202:
-            logger.info("%s: sent %s to graphite"%(sensor, metric))
-        else:
-            logger.error("%s: failed to send %s to graphite"%(sensor, metric))
 
 def on_connect(client, userdata, flags, rc):
   logger.debug("Connected with result code "+str(rc))
   client.subscribe([("zigbee2mqtt/bridge/logging",0), ("zigbee2mqtt/#",0), ("homeassistant/#",0), ("openweathermap/#",0), ("KeepAlive/#", 0)])
 
-def on_message_http(client, userdata, msg):
+def on_message(client, userdata, msg):
     global args
     logger.debug(msg.payload.decode())
     logger.debug(Sensors)
     logger.debug(msg.topic)
+    metric = None
     if msg.topic == "zigbee2mqtt/bridge/logging":
         try:
             payload = json.loads(msg.payload.decode())
@@ -65,16 +69,19 @@ def on_message_http(client, userdata, msg):
             logger.error("Cannot parse json \"%s\""%msg.payload.decode())
             pass
         else:
-            metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, "logging", payload["level"], 1)
-            graphiteHttpPost(metric, "logging/%s"%payload["level"])
+            metric = "%s.%s.%s %d"%(Prefix, "logging", payload["level"], 1)
+            graphiteSend(metric, "logging/%s"%payload["level"])
             m = errorRegex.search(payload["message"])
             if m:
-                metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, m.group(1), "failure", 1)
-                graphiteHttpPost(metric, m.group(1))
+                metric = "%s.%s.%s %d"%(Prefix, m.group(1), "failure", 1)
+                graphiteSend(metric, m.group(1))
             else:
-                logger.error("Cannot extract sensor \"%s\""%payload["message"])
+                metric = None
+            #else:
+            #    logger.error("Cannot extract sensor \"%s\""%payload["message"])
     else:
         for sensor in Sensors:
+            metric = None
             if sensor in msg.topic:
                 try:
                     payload = json.loads(msg.payload.decode())
@@ -84,27 +91,27 @@ def on_message_http(client, userdata, msg):
                 for type, value in payload.items():
                     if isinstance(value, str):
                         if value == "ON":
-                            metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 1)
+                            metric = "%s.%s.%s %d"%(Prefix, sensor, type, 1)
                         elif value == "OFF":
-                            metric = "%s.%s.%s.%s %d"%(args.graphiteKey, Prefix, sensor, type, 0)
+                            metric = "%s.%s.%s %d"%(Prefix, sensor, type, 0)
                         else:
-                            metric = "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value)
+                            metric = "%s.%s.%s %s"%(Prefix, sensor, type, value)
+                    elif isinstance(value, dict):
+                        metric = None
                     elif value is not None:
                         try:
-                            metric = "%s.%s.%s.%s %f"%(args.graphiteKey, Prefix, sensor, type, value)
+                            metric = "%s.%s.%s %f"%(Prefix, sensor, type, value)
                         except TypeError:
-                            logger.error("Invalid type: " + "%s.%s.%s.%s %s"%(args.graphiteKey, Prefix, sensor, type, value))
+                            logger.error("Invalid type: " + "%s.%s.%s %s"%(Prefix, sensor, type, value))
                             metric = None
 
                     if metric is not None:
-                        graphiteHttpPost(metric, sensor)
+                        graphiteSend(metric, sensor)
 
 def main():
-    global args, token
+    global args
     parser = argparse.ArgumentParser(description='subscribe to topics and send data to graphite')
-    parser.add_argument('--graphiteKey', metavar='GRAPHITEKEY', required=True,
-                        help='graphite key')
-    parser.add_argument('--graphiteUrl', metavar='GRAPHITEURL', default="https://graphite.debroglie.net/graphiteSink.php",
+    parser.add_argument('--graphiteUrl', metavar='GRAPHITEURL', default="localhost",
                         help='graphite host')
     parser.add_argument('--mqttHost', metavar='MQTTHOST', default="localhost",
                         help='mqtt host')
@@ -112,13 +119,11 @@ def main():
                         help='mqtt port', type=int)
     args = parser.parse_args()
 
-    token = args.graphiteKey
-
     client = mqtt.Client()
     client.connect(args.mqttHost,args.mqttPort,60)
 
     client.on_connect = on_connect
-    client.on_message = on_message_http
+    client.on_message = on_message
 
     client.loop_forever()
 

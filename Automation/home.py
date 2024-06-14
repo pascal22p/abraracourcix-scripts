@@ -36,16 +36,16 @@ global args, state
 
 class State:
     heatingKitchen = None
-    heatingRate = 0.12 # deg/min
+    heatingRate = 0.11 # deg/min
     heatingDelay = 10 * 60 # # seconds
     heatingKitchenStart = (6, 0) # (hour, minute)
-    heatingKitchenEnd = (8, 30) # (hour, minute)
+    heatingKitchenEnd = (8, 45) # (hour, minute)
     heatingKitchenWantedTime = (7, 45)
-    heatingKitchenNightStart = (20, 0)
+    heatingKitchenNightStart = (21, 0)
     heatingKitchenNightEnd = heatingKitchenStart
     temperatureKitchen = None
-    temperatureThreshold = 19.0 # deg
-    temperatureHysteresis = 0.5 # deg
+    temperatureThreshold = 19.5 # deg
+    temperatureHysteresis = 0.3 # deg
     powerTV = None
     lastOnTV = None
     sleepTime = 60 * 10 # 10 min
