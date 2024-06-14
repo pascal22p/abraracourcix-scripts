@@ -31,7 +31,7 @@ for file in glob.glob('/home/vmail/vhosts/**/.Junk/**', recursive = True):
         email.close()
         matches = clientIp.findall(emailbody)
         for match in matches:
-            subNet = ".".join(match.split(".")[0:-1]) + ".0/24 REJECT"
+            subNet = ".".join(match.split(".")[0:-1]) + ".0/24 REDIRECT honeypot@parois.net"
             if subNet not in subNets:
                 subNets[subNet] = 1
             else:

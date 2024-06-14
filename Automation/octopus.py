@@ -5,6 +5,7 @@ import logging
 import traceback
 import sys
 import argparse
+import socket
 from dateutil import parser as dateParse
 
 appName = 'OctopusEnergy'
@@ -25,6 +26,17 @@ else:
         logger.addHandler(stdout)
     finally:
         logger.setLevel(logging.DEBUG)
+
+def graphiteSend(metric):
+    global args
+    try:
+       	conn = socket.create_connection(("localhost", 2003))
+       	conn.send(metric.encode('utf-8'))
+       	conn.close()
+       	logger.info("Sent `" + metric + "` to graphite")
+    except ConnectionError as e:
+       	logger.error("%s: failed to send %s to graphite with error %s"%(metric, str(e)))
+        pass
 
 def graphiteHttpPost(graphiteUrl, metric):
     try:
@@ -73,10 +85,6 @@ def getElectricityComsumptionInKwh(API_KEY, mpan, electricMeter, days = 1):
 def main():
     global args, token
     parser = argparse.ArgumentParser(description='Gather data from Octopus API and send it to graphite')
-    parser.add_argument('--graphiteKey', metavar='GRAPHITEKEY', required=True,
-                        help='graphite key')
-    parser.add_argument('--graphiteUrl', metavar='GRAPHITEURL', default="https://graphite.debroglie.net/graphiteSink.php",
-                        help='graphite host')
     parser.add_argument('--apiKey', metavar='APIKEY', required=True,
                         help='octopus api key')
     parser.add_argument('--mpan', metavar='MPAN', required=True,
@@ -87,29 +95,31 @@ def main():
                         help='MPRN')
     parser.add_argument('--gSerial', metavar='GSERIAL', required=True,
                         help='gas meter serial number')
-    parser.add_argument('--days', metavar='DAYS', default=1,
+    parser.add_argument('--days', metavar='DAYS', default=7,
                         help='nuber of days to fetch')
     args = parser.parse_args()
 
-    gasData = getGasComsumptionInKwh(args.apiKey, args.mprn, args.gSerial,args.days)
+    gasData = getGasComsumptionInKwh(args.apiKey, args.mprn, args.gSerial,int(args.days))
     if gasData:
         metrics = ""
         for measure in gasData:
             if measure["consumption"] > 0:
-                metric = "%s.%s %f %d"%(args.graphiteKey, "energy.gas.consumption", measure["consumption"], dateParse.parse(measure["interval_end"]).timestamp())
+                metric = "%s %f %d"%("energy.gas.consumption", measure["consumption"], dateParse.parse(measure["interval_end"]).timestamp())
                 metrics += metric + "\n"
         if metrics:
-            graphiteHttpPost(args.graphiteUrl, metrics)
+            graphiteSend(metrics)
+            #graphiteHttpPost(args.graphiteUrl, metrics)
 
     metrics = ""
-    elecData = getElectricityComsumptionInKwh(args.apiKey, args.mpan, args.eSerial,args.days)
+    elecData = getElectricityComsumptionInKwh(args.apiKey, args.mpan, args.eSerial,int(args.days))
     if elecData:
         for measure in elecData:
             if measure["consumption"] > 0:
-                metric = "%s.%s %f %d"%(args.graphiteKey, "energy.electricity.consumption", measure["consumption"], dateParse.parse(measure["interval_end"]).timestamp())
+                metric = "%s %f %d"%("energy.electricity.consumption", measure["consumption"], dateParse.parse(measure["interval_end"]).timestamp())
                 metrics += metric + "\n"
         if metrics:
-            graphiteHttpPost(args.graphiteUrl, metrics)
+            graphiteSend(metrics)
+            #graphiteHttpPost(args.graphiteUrl, metrics)
 
 
 if __name__ == '__main__':

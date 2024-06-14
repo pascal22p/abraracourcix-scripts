@@ -44,7 +44,7 @@ def updateLastValue(timestamp):
     f.close()
 
 def getWeatherStationData(key, location):
-    url = 'https://api.openweathermap.org/data/2.5/onecall?appid=%s&units=metric&lat=%f&lon=%f&exclude=minutely,daily,alerts'%(key, location["lat"], location["lon"])
+    url = 'https://api.openweathermap.org/data/3.0/onecall?appid=%s&units=metric&lat=%f&lon=%f&exclude=minutely,daily,alerts'%(key, location["lat"], location["lon"])
 
     #print(url)
     resp = requests.get(url)
