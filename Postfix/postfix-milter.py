@@ -11,16 +11,24 @@ import time
 import socket
 from systemd import journal
 import sys
+from email.message import EmailMessage
+import smtplib
 
 class PostfixMilter(Milter.Base):
     """Simple milter that passes all messages unchanged and logs to journald"""
 
-    def __init__(self, email_address_to_filter):
+    def extract_ip(hostaddr):
+    if isinstance(hostaddr, tuple):
+        return hostaddr[0]
+    return str(hostaddr)
+
+    def __init__(self, email_address_to_filter, admin_email_address):
         self.id = "unknown"  # Message ID
         self.mail_from = None
         self.hostname = "unknown"
         self.hostaddr = None
         self.email_address_to_filter = email_address_to_filter
+        self.admin_email_address = admin_email_address
 
     def connect(self, hostname, family, hostaddr):
         """Record connection from client"""
@@ -31,7 +39,7 @@ class PostfixMilter(Milter.Base):
                     SYSLOG_IDENTIFIER="postfix-milter",
                     HOSTNAME=socket.gethostname(),
                     CLIENT_HOSTNAME=hostname,
-                    CLIENT_IP=str(hostaddr))
+                    CLIENT_IP=extract_ip(hostaddr))
         return Milter.CONTINUE
 
     def hello(self, heloname):
@@ -39,8 +47,8 @@ class PostfixMilter(Milter.Base):
         journal.send(f"HELO/EHLO from {heloname}",
                     PRIORITY=journal.LOG_INFO,
                     SYSLOG_IDENTIFIER="postfix-milter",
-                    CLIENT_HOSTNAME=self.hostname,
-                    HELO_NAME=heloname)
+                    CLIENT_HOSTNAME=str(self.hostname),
+                    HELO_NAME=str(heloname))
         return Milter.CONTINUE
 
     def envfrom(self, mailfrom, *args):
@@ -49,14 +57,16 @@ class PostfixMilter(Milter.Base):
         journal.send(f"MAIL FROM: {mailfrom}",
                     PRIORITY=journal.LOG_INFO,
                     SYSLOG_IDENTIFIER="postfix-milter",
-                    CLIENT_HOSTNAME=self.hostname,
-                    MAIL_FROM=mailfrom)
+                    CLIENT_HOSTNAME=str(self.hostname),
+                    MAIL_FROM=str(mailfrom))
         return Milter.CONTINUE
 
     def envrcpt(self, to, *args):
         """Record RCPT TO command and reject non-parois.net destinations for authenticated users"""
         auth_authen = self.getsymval("{auth_authen}")
         rcpt_to = self.getsymval("{rcpt_host}")
+        mail_addr = self.getsymval("{mail_addr}")
+        rcpt_addr = self.getsymval("{rcpt_addr}")
 
         if auth_authen:
             journal.send(f"Authenticated user: {auth_authen}",
@@ -65,21 +75,42 @@ class PostfixMilter(Milter.Base):
 
             if auth_authen.lower() == self.email_address_to_filter:
                 if rcpt_to != "parois.net":
+                    message = EmailMessage()
+                    message.add_header("X-Original-Recipient", rcpt_addr)
+                    message.add_header("X-Filtered-Reason", "Blocked non-parois.net recipient")
+                    message.add_header("X-Original-Sender", mail_addr)
+                    message.add_header("Subject", f"Blocked message from {mail_addr} to {rcpt_addr}")
+                    message.set_content(f"Blocked message from {mail_addr} to {rcpt_addr}")
+
+                    try:
+                        with smtplib.SMTP("localhost") as smtp:
+                            smtp.send_message(message, from_addr=mail_addr, to_addrs=admin_email_address)
+
+                        journal.send(f"Blocked message from {self.mail_from} forwarded to {admin_email_address}",
+                                     PRIORITY=journal.LOG_INFO,
+                                     SYSLOG_IDENTIFIER="postfix-milter",
+                                     MESSAGE_ID=str(self.id))
+                    except Exception as e:
+                        journal.send(f"Failed to forward blocked email: {e}",
+                                     PRIORITY=journal.LOG_ERR,
+                                     SYSLOG_IDENTIFIER="postfix-milter",
+                                     EXCEPTION=str(e))
+
                     journal.send(f"Authenticated user {auth_authen} attempted to send to unauthorized recipient {to}",
                         PRIORITY=journal.LOG_ERR,
                         SYSLOG_IDENTIFIER="postfix-milter",
-                        CLIENT_HOSTNAME=self.hostname,
-                        MAIL_FROM=self.mail_from,
-                        AUTH_USER=auth_authen,
-                        REJECTED_RCPT=rcpt_to)
+                        CLIENT_HOSTNAME=str(self.hostname),
+                        MAIL_FROM=str(self.mail_from),
+                        AUTH_USER=str(auth_authen),
+                        REJECTED_RCPT=str(rcpt_to))
                     return Milter.REJECT
 
 
         journal.send(f"RCPT TO: {to}",
                 PRIORITY=journal.LOG_INFO,
                 SYSLOG_IDENTIFIER="postfix-milter",
-                CLIENT_HOSTNAME=self.hostname,
-                RCPT_TO=to)
+                CLIENT_HOSTNAME=str(self.hostname),
+                RCPT_TO=str(to))
         return Milter.CONTINUE
 
     def header(self, name, value):
@@ -89,8 +120,8 @@ class PostfixMilter(Milter.Base):
             journal.send(f"Message ID: {value}",
                         PRIORITY=journal.LOG_INFO,
                         SYSLOG_IDENTIFIER="postfix-milter",
-                        CLIENT_HOSTNAME=self.hostname,
-                        MESSAGE_ID=value)
+                        CLIENT_HOSTNAME=str(self.hostname),
+                        MESSAGE_ID=str(value))
         return Milter.CONTINUE
 
     def eoh(self):
@@ -98,7 +129,7 @@ class PostfixMilter(Milter.Base):
         return Milter.CONTINUE
 
     def body(self, chunk):
-        """Process message body chunk - we don't even look at it"""
+        """Process message body chunk"""
         return Milter.CONTINUE
 
     def eom(self):
@@ -121,10 +152,10 @@ class PostfixMilter(Milter.Base):
         journal.send(f"Message {self.id} from {self.mail_from} accepted with X-Filtered: {filtered_value}",
                 PRIORITY=journal.LOG_INFO,
                 SYSLOG_IDENTIFIER="postfix-milter",
-                CLIENT_HOSTNAME=self.hostname,
-                MESSAGE_ID=self.id,
-                MAIL_FROM=self.mail_from,
-                FILTERED=filtered_value,
+                CLIENT_HOSTNAME=str(self.hostname),
+                MESSAGE_ID=str(self.id),
+                MAIL_FROM=str(self.mail_from),
+                FILTERED=str(filtered_value),
                 STATUS="accepted")
 
         return Milter.ACCEPT
@@ -134,7 +165,7 @@ class PostfixMilter(Milter.Base):
         journal.send("Client disconnected prematurely",
                     PRIORITY=journal.LOG_WARNING,
                     SYSLOG_IDENTIFIER="postfix-milter",
-                    CLIENT_HOSTNAME=self.hostname)
+                    CLIENT_HOSTNAME=str(self.hostname))
         return Milter.ACCEPT
 
     def close(self):
@@ -142,7 +173,7 @@ class PostfixMilter(Milter.Base):
         journal.send("Connection closed",
                     PRIORITY=journal.LOG_INFO,
                     SYSLOG_IDENTIFIER="postfix-milter",
-                    CLIENT_HOSTNAME=self.hostname)
+                    CLIENT_HOSTNAME=str(self.hostname))
         return Milter.ACCEPT
 
 def main():
@@ -152,6 +183,7 @@ def main():
     socket_dir = os.path.dirname(socket_path)
 
     email_address_to_filter = sys.argv[1]
+    admin_email_address = sys.argv[2]
 
     # Make sure the directory exists
     if not os.path.exists(socket_dir):
@@ -168,7 +200,7 @@ def main():
         os.unlink(socket_path)
 
     # Register to socket and run
-    Milter.factory = lambda: PostfixMilter(email_address_to_filter)
+    Milter.factory = lambda: PostfixMilter(email_address_to_filter, admin_email_address)
 
     # We don't need any modification flags since we're just passing through
     Milter.set_flags(0)
