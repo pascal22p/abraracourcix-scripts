@@ -168,7 +168,7 @@ def main():
         os.unlink(socket_path)
 
     # Register to socket and run
-    Milter.factory = PostfixMilter(email_address_to_filter)
+    Milter.factory = lambda: PostfixMilter(email_address_to_filter)
 
     # We don't need any modification flags since we're just passing through
     Milter.set_flags(0)
