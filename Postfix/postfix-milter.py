@@ -85,9 +85,9 @@ class PostfixMilter(Milter.Base):
 
                     try:
                         with smtplib.SMTP("localhost") as smtp:
-                            smtp.send_message(message, from_addr=mail_addr, to_addrs=admin_email_address)
+                            smtp.send_message(message, from_addr=mail_addr, to_addrs=self.admin_email_address)
 
-                        journal.send(f"Blocked message from {self.mail_from} forwarded to {admin_email_address}",
+                        journal.send(f"Blocked message from {self.mail_from} forwarded to {self.admin_email_address}",
                                      PRIORITY=journal.LOG_INFO,
                                      SYSLOG_IDENTIFIER="postfix-milter",
                                      MESSAGE_ID=str(self.id))
