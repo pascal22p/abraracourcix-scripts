@@ -17,7 +17,7 @@ import smtplib
 class PostfixMilter(Milter.Base):
     """Simple milter that passes all messages unchanged and logs to journald"""
 
-    def extract_ip(hostaddr):
+    def extract_ip(self, hostaddr):
         if isinstance(hostaddr, tuple):
             return hostaddr[0]
         else:
