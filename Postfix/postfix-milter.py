@@ -18,9 +18,10 @@ class PostfixMilter(Milter.Base):
     """Simple milter that passes all messages unchanged and logs to journald"""
 
     def extract_ip(hostaddr):
-    if isinstance(hostaddr, tuple):
-        return hostaddr[0]
-    return str(hostaddr)
+        if isinstance(hostaddr, tuple):
+            return hostaddr[0]
+        else:
+            return str(hostaddr)
 
     def __init__(self, email_address_to_filter, admin_email_address):
         self.id = "unknown"  # Message ID
