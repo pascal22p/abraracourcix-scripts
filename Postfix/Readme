@@ -1,0 +1,1 @@
+postfix-milter is a milter to restrict outgoing email from a particular email address to a single domain.
