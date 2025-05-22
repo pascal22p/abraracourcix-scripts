@@ -40,7 +40,7 @@ class PostfixMilter(Milter.Base):
                     SYSLOG_IDENTIFIER="postfix-milter",
                     HOSTNAME=socket.gethostname(),
                     CLIENT_HOSTNAME=hostname,
-                    CLIENT_IP=extract_ip(hostaddr))
+                    CLIENT_IP=self.extract_ip(hostaddr))
         return Milter.CONTINUE
 
     def hello(self, heloname):
