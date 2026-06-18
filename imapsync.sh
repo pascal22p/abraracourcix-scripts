@@ -16,7 +16,7 @@ usage() {
 log() {
   local PRIORITY="${1}"
   local MESSAGE="${2}"
-  echo "${MESSAGE}"
+  # echo "${MESSAGE}"
   echo "${MESSAGE}" | systemd-cat -t "${LOG_TAG}" -p "${PRIORITY}"
 }
 
@@ -79,7 +79,7 @@ compare_messages() {
 
   local LOCAL_COUNT
   LOCAL_COUNT=$(doveadm mailbox status -u "${USER}" messages "${MAILBOX}" \
-    | awk '{print $2}')
+    | awk -F'=' '{print $2}')
 
   if [[ -z "${LOCAL_COUNT}" ]]; then
     log err "[$USER] Failed to get message count from local doveadm"
@@ -91,7 +91,7 @@ compare_messages() {
   if [[ "${API_COUNT}" == "${LOCAL_COUNT}" ]]; then
     log info "[$USER] MATCH (${API_COUNT} messages)"
   else
-    log warning "[$USER] MISMATCH — API=${API_COUNT} local=${LOCAL_COUNT} diff=$((API_COUNT - LOCAL_COUNT))"
+    log err "[$USER] MISMATCH — API=${API_COUNT} local=${LOCAL_COUNT} diff=$((API_COUNT - LOCAL_COUNT))"
   fi
 }
 
@@ -112,6 +112,7 @@ run_imapsync() {
     --notls1 --notls2 \
     --syncinternaldates --useuid --noexpungeaftereach \
     --nofoldersizes --delete2 --delete2folders \
+    --nolog \
     >"$TMPLOG" 2>&1
   local EXIT_CODE=$?
 

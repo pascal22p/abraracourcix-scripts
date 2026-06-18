@@ -10,15 +10,21 @@ import logging
 
 appName = "docker-stats"
 
-try:
-    from systemd.journal import JournalHandler
-    logger = logging.getLogger(appName)
-    logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
-except ImportError:
+if True:
+    try:
+        from systemd.journal import JournalHandler
+        logger = logging.getLogger(appName)
+        logger.addHandler(JournalHandler(SYSLOG_IDENTIFIER=appName))
+    except ImportError:
+        logger = logging.getLogger(appName)
+        stdout = logging.StreamHandler(sys.stdout)
+        logger.addHandler(stdout)
+    finally:
+        logger.setLevel(logging.INFO)
+else:
     logger = logging.getLogger(appName)
     stdout = logging.StreamHandler(sys.stdout)
     logger.addHandler(stdout)
-finally:
     logger.setLevel(logging.INFO)
 
 def docker_stats(prefix, docker_path):
@@ -30,7 +36,7 @@ def docker_stats(prefix, docker_path):
 
     try:
         sock = socket.socket()
-        sock.connect(("192.168.1.2", 2003))
+        sock.connect(("127.0.0.1", 2003))
     except Exception as e:
         logger.error("Could not connect to socket (%s)"%e)
         sys.exit(2)
